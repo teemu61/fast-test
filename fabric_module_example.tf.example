@@ -1,0 +1,57 @@
+/**
+ * Cloud Foundation Fabric (CFF) Module Variant
+ *
+ * If you are working directly with the cloned Cloud Foundation Fabric repository,
+ * FAST Stage 1 uses the high-level CFF `folder` module instead of raw resources.
+ *
+ * Below is how the same folders and IAM delegation are configured using CFF modules:
+ */
+
+/*
+module "networking_folder" {
+  source = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/folder?ref=v34.0.0"
+  parent = "organizations/${var.organization_id}"
+  name   = "${var.prefix}-networking"
+
+  # Folder-level IAM bindings (delegation to Stage 2 Networking SA & human admins)
+  iam = {
+    "roles/compute.xpnAdmin"               = ["serviceAccount:${var.stage0_automation_service_accounts.networking}"]
+    "roles/resourcemanager.projectCreator" = ["serviceAccount:${var.stage0_automation_service_accounts.networking}"]
+    "roles/resourcemanager.folderAdmin"    = ["serviceAccount:${var.stage0_automation_service_accounts.networking}"]
+    "roles/resourcemanager.folderViewer"   = [var.admin_principals.network_admins]
+  }
+
+  tag_bindings = var.enable_tags ? {
+    context = google_tags_tag_value.context_networking[0].id
+  } : {}
+}
+
+module "security_folder" {
+  source = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/folder?ref=v34.0.0"
+  parent = "organizations/${var.organization_id}"
+  name   = "${var.prefix}-security"
+
+  iam = {
+    "roles/cloudkms.admin"                 = ["serviceAccount:${var.stage0_automation_service_accounts.security}"]
+    "roles/resourcemanager.projectCreator" = ["serviceAccount:${var.stage0_automation_service_accounts.security}"]
+    "roles/resourcemanager.folderAdmin"    = ["serviceAccount:${var.stage0_automation_service_accounts.security}"]
+    "roles/resourcemanager.folderViewer"   = [var.admin_principals.security_admins]
+  }
+
+  tag_bindings = var.enable_tags ? {
+    context = google_tags_tag_value.context_security[0].id
+  } : {}
+}
+
+module "workloads_folder" {
+  source = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/folder?ref=v34.0.0"
+  parent = "organizations/${var.organization_id}"
+  name   = "${var.prefix}-workloads"
+
+  iam = {
+    "roles/resourcemanager.projectCreator" = ["serviceAccount:${var.stage0_automation_service_accounts.project_factory}"]
+    "roles/resourcemanager.folderAdmin"    = ["serviceAccount:${var.stage0_automation_service_accounts.project_factory}"]
+    "roles/resourcemanager.folderViewer"   = [var.admin_principals.devops_admins]
+  }
+}
+*/

@@ -1,0 +1,81 @@
+# =============================================================================
+# Terraform State and Runtime Files (Contain sensitive infra state & credentials)
+# =============================================================================
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+*.tfplan
+*.plan
+crash.log
+crash.*.log
+
+# Terraform local working directories & plugins
+.terraform/
+# Optional: Uncomment if you do not want to track provider lockfiles
+# .terraform.lock.hcl
+
+# =============================================================================
+# Terraform Variables & Configuration Files (Secrets, Org IDs, Account Numbers)
+# =============================================================================
+# Ignore all actual variable files
+*.tfvars
+*.tfvars.json
+*.auto.tfvars
+*.auto.tfvars.json
+
+# Whitelist example variable files for documentation/reference
+!*.tfvars.example
+!*.tfvars.json.example
+!*.example
+
+# =============================================================================
+# Google FAST Cross-Stage Output Files (Contain live stage credentials & IDs)
+# =============================================================================
+*-outputs.json
+*-inputs.json
+*stage*.json
+
+# =============================================================================
+# GCP Credentials, Service Account Keys, and Certificates
+# =============================================================================
+*.json.key
+*credential*.json
+*service_account*.json
+*service-account*.json
+*key*.json
+*.pem
+*.key
+*.pkcs12
+*.p12
+*.pfx
+*.crt
+*.csr
+
+# =============================================================================
+# Environment Variables & Secret Files
+# =============================================================================
+.env
+.env.*
+*.env
+
+# =============================================================================
+# Operating System & IDE Files
+# =============================================================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# IDEs & Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
