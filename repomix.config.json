@@ -1,0 +1,53 @@
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+  "output": {
+    "filePath": "repomix-output.xml",
+    "style": "xml",
+    "fileSummary": true,
+    "directoryStructure": true,
+    "removeComments": false,
+    "removeEmptyLines": false,
+    "showLineNumbers": false,
+    "copyToClipboard": false,
+    "topFilesLength": 5
+  },
+  "include": [
+    "**/*.tf",
+    "**/*.tfvars.example",
+    "**/*.example",
+    "**/*.md",
+    "**/*.yaml",
+    "**/*.yml"
+  ],
+  "ignore": {
+    "useGitignore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      ".terraform/**",
+      "**/.terraform/**",
+      "*.tfstate*",
+      "**/*.tfstate*",
+      "*.tfplan",
+      "**/*.tfplan",
+      ".terraform.lock.hcl",
+      "**/.terraform.lock.hcl",
+      "*.tfvars",
+      "*.auto.tfvars",
+      "*.auto.tfvars.json",
+      "*.tfvars.json",
+      "*-outputs.json",
+      "*-inputs.json",
+      "*stage*.json",
+      "*.key",
+      "*.pem",
+      "*credential*.json",
+      "*service_account*.json",
+      ".env*",
+      "repomix-output.*",
+      "repomix.config.json"
+    ]
+  },
+  "security": {
+    "enableSecurityCheck": true
+  }
+}
