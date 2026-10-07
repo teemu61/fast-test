@@ -1,8 +1,8 @@
 {
   "$schema": "https://repomix.com/schemas/latest/schema.json",
   "output": {
-    "filePath": "repomix-output.xml",
-    "style": "xml",
+    "filePath": "repomix-output.md",
+    "style": "markdown",
     "fileSummary": true,
     "directoryStructure": true,
     "removeComments": false,
