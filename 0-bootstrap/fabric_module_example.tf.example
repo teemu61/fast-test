@@ -1,0 +1,50 @@
+/**
+ * Cloud Foundation Fabric (CFF) Module Variant for Stage 0 (Bootstrap)
+ *
+ * If you are working directly with the official Cloud Foundation Fabric repository,
+ * FAST Stage 0 uses high-level CFF modules (`project`, `gcs`, and `iam-service-account`)
+ * instead of raw Terraform resources.
+ *
+ * Below is how the seed automation project, state buckets, and service accounts are
+ * configured using Cloud Foundation Fabric modules:
+ */
+
+/*
+module "automation_project" {
+  source          = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/project?ref=v34.0.0"
+  billing_account = var.billing_account_id
+  name            = "${var.prefix}-prod-iac-0"
+  parent          = "organizations/${var.organization_id}"
+  prefix          = var.prefix
+  services = [
+    "cloudresourcemanager.googleapis.com",
+    "iam.googleapis.com",
+    "storage.googleapis.com",
+    "cloudbilling.googleapis.com",
+    "serviceusage.googleapis.com",
+    "logging.googleapis.com",
+    "monitoring.googleapis.com"
+  ]
+}
+
+module "state_bucket_resman" {
+  source     = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/gcs?ref=v34.0.0"
+  project_id = module.automation_project.project_id
+  name       = "${var.prefix}-state-stage1-resman"
+  location   = var.storage_location
+  versioning = true
+}
+
+module "resman_sa" {
+  source     = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/iam-service-account?ref=v34.0.0"
+  project_id = module.automation_project.project_id
+  name       = "${var.prefix}-stage1-resman"
+  iam_organization_roles = {
+    (var.organization_id) = [
+      "roles/resourcemanager.organizationAdmin",
+      "roles/resourcemanager.folderAdmin",
+      "roles/orgpolicy.policyAdmin"
+    ]
+  }
+}
+*/
