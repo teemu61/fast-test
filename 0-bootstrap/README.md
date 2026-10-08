@@ -67,8 +67,14 @@ flowchart TD
    - Grants administrator groups `roles/iam.serviceAccountTokenCreator` on the stage service accounts.
    - Downstream stages can impersonate these service accounts directly via `provider "google" { impersonate_service_account = ... }` without creating or exporting JSON private keys.
 
-6. **Stage Contract Outputs**:
+6. **Workload Identity Federation (WIF) for GitHub Actions**:
+   - Provisions a dedicated Workload Identity Pool (`fast-github-pool`) and GitHub OIDC Provider.
+   - Restricts authentication conditions to the designated GitHub repository.
+   - Binds `roles/iam.workloadIdentityUser` to all stage automation service accounts, enabling keyless CI/CD.
+
+7. **Stage Contract Outputs**:
    - Emits `stage1_resman_inputs` containing `organization_id`, `billing_account_id`, `prefix`, and `stage0_automation_service_accounts` ready for consumption by Stage 1.
+   - Emits `workload_identity_provider` to easily configure GitHub Secrets.
 
 ---
 
@@ -77,13 +83,15 @@ flowchart TD
 | File | Purpose |
 | :--- | :--- |
 | [`versions.tf`](./versions.tf) | Terraform version `>= 1.5.0`, provider pins, and backend migration notes |
-| [`variables.tf`](./variables.tf) | Input variables for organization, billing, admin groups, and storage location |
+| [`variables.tf`](./variables.tf) | Input variables for organization, billing, admin groups, WIF, and storage location |
 | [`project.tf`](./project.tf) | Seed automation project creation and API enablement |
 | [`storage.tf`](./storage.tf) | GCS remote state buckets with versioning, UBLA, and stage SA access |
 | [`iam.tf`](./iam.tf) | Stage service accounts, organization IAM, billing IAM, and impersonation |
-| [`outputs.tf`](./outputs.tf) | Exported automation project ID, state buckets, and Stage 1 contract |
-| [`terraform.tfvars.example`](./terraform.tfvars.example) | Example variable values |
+| [`wif.tf`](./wif.tf) | Workload Identity Pool, GitHub OIDC Provider, and keyless CI/CD delegation |
+| [`outputs.tf`](./outputs.tf) | Exported automation project ID, state buckets, WIF provider name, and Stage 1 contract |
+| [`terraform.tfvars.example`](./terraform.tfvars.example) | Example variable values including WIF settings |
 | [`fabric_module_example.tf.example`](./fabric_module_example.tf.example) | Reference using Cloud Foundation Fabric `modules/project` and `modules/gcs` |
+
 
 ---
 

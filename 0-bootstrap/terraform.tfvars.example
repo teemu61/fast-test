@@ -19,3 +19,8 @@ admin_principals = {
 
 grant_org_roles     = true
 grant_billing_roles = true
+
+# Keyless Workload Identity Federation (WIF) for GitHub Actions CI/CD
+enable_wif        = true
+github_repository = "teemu61/fast-test"
+

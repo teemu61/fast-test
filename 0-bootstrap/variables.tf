@@ -39,6 +39,8 @@ variable "project_services" {
   default = [
     "cloudresourcemanager.googleapis.com",
     "iam.googleapis.com",
+    "iamcredentials.googleapis.com",
+    "sts.googleapis.com",
     "storage.googleapis.com",
     "cloudbilling.googleapis.com",
     "serviceusage.googleapis.com",
@@ -73,7 +75,7 @@ variable "admin_principals" {
 }
 
 # -----------------------------------------------------------------------------
-# Feature Toggles
+# Feature Toggles & CI/CD Configuration
 # -----------------------------------------------------------------------------
 
 variable "grant_org_roles" {
@@ -86,4 +88,16 @@ variable "grant_billing_roles" {
   description = "Whether to grant billing account user permissions to stage automation service accounts."
   type        = bool
   default     = true
+}
+
+variable "enable_wif" {
+  description = "Whether to provision Workload Identity Federation for keyless GitHub Actions CI/CD."
+  type        = bool
+  default     = true
+}
+
+variable "github_repository" {
+  description = "GitHub repository formatted as 'owner/repo' (e.g. 'teemu61/fast-test') allowed to authenticate via WIF."
+  type        = string
+  default     = "teemu61/fast-test"
 }

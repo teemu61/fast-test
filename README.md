@@ -283,13 +283,14 @@ fast-test/
 │       ├── stage-1-resman.yml        # CI/CD: Resource Management stage pipeline
 │       ├── stage-2-networking.yml    # CI/CD: Shared VPC & Networking stage pipeline
 │       └── stage-2-security.yml      # CI/CD: Central KMS & Security stage pipeline
-├── 0-bootstrap/              # Stage 0: Automation project, state buckets, stage SAs, IAM
+├── 0-bootstrap/              # Stage 0: Automation project, state buckets, stage SAs, IAM, WIF
 │   ├── versions.tf           # Terraform version constraints and providers
-│   ├── variables.tf          # Org ID, billing ID, storage location, admin groups
+│   ├── variables.tf          # Org ID, billing ID, storage location, admin groups, WIF
 │   ├── project.tf            # Automation seed project & API enablement
 │   ├── storage.tf            # GCS remote state buckets with UBLA & versioning
 │   ├── iam.tf                # Stage service accounts, org & billing IAM, impersonation
-│   ├── outputs.tf            # Exports stage1_resman_inputs contract
+│   ├── wif.tf                # Workload Identity Pool & GitHub OIDC Provider for keyless CI/CD
+│   ├── outputs.tf            # Exports stage1_resman_inputs contract & WIF provider name
 │   ├── terraform.tfvars.example
 │   ├── fabric_module_example.tf.example
 │   └── README.md             # Stage 0 specific architectural documentation

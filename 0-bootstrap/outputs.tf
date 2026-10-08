@@ -50,3 +50,18 @@ output "stage1_resman_inputs" {
     admin_principals = var.admin_principals
   }
 }
+
+# -----------------------------------------------------------------------------
+# Workload Identity Federation Outputs (for GitHub Actions CI/CD)
+# -----------------------------------------------------------------------------
+
+output "workload_identity_provider" {
+  description = "Full resource name of the Workload Identity Provider to set as GCP_WORKLOAD_IDENTITY_PROVIDER in GitHub Secrets."
+  value       = var.enable_wif ? google_iam_workload_identity_pool_provider.github_provider[0].name : null
+}
+
+output "workload_identity_pool" {
+  description = "Name of the Workload Identity Pool."
+  value       = var.enable_wif ? google_iam_workload_identity_pool.github_pool[0].name : null
+}
+
