@@ -1,0 +1,99 @@
+name: Stage 1 - Resource Management CI/CD
+
+on:
+  pull_request:
+    branches:
+      - main
+      - resource-management
+    paths:
+      - '1-resman/**'
+      - '.github/workflows/stage-1-resman.yml'
+  push:
+    branches:
+      - main
+      - resource-management
+    paths:
+      - '1-resman/**'
+      - '.github/workflows/stage-1-resman.yml'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Terraform action to execute'
+        required: true
+        default: 'plan'
+        type: choice
+        options:
+          - plan
+          - apply
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+jobs:
+  stage-1-resman:
+    name: Terraform Stage 1 (Resource Management)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: 1-resman
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.0
+
+      # Authenticate via Workload Identity Federation (recommended for production)
+      - name: Authenticate to GCP (Workload Identity Federation)
+        id: auth_wif
+        if: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER != '' }}
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_STAGE1_SA || secrets.GCP_SERVICE_ACCOUNT }}
+
+      # Authenticate via Service Account JSON key (alternative fallback)
+      - name: Authenticate to GCP (Service Account Key)
+        id: auth_key
+        if: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER == '' && secrets.GCP_SA_KEY != '' }}
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Check Authentication Status
+        id: auth_check
+        run: |
+          if [ "${{ steps.auth_wif.outputs.credentials_file_path }}" != "" ] || [ "${{ steps.auth_key.outputs.credentials_file_path }}" != "" ]; then
+            echo "is_authenticated=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_authenticated=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -diff
+
+      - name: Terraform Init
+        run: |
+          if [ "${{ steps.auth_check.outputs.is_authenticated }}" = "true" ]; then
+            echo "GCP credentials active. Initializing backend..."
+            terraform init
+          else
+            echo "No GCP credentials detected. Initializing with -backend=false for static validation..."
+            terraform init -backend=false
+          fi
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        if: ${{ (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.action == 'plan')) && steps.auth_check.outputs.is_authenticated == 'true' }}
+        run: terraform plan -no-color
+
+      - name: Terraform Apply
+        if: ${{ ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')) && steps.auth_check.outputs.is_authenticated == 'true' }}
+        run: terraform apply -auto-approve -no-color
