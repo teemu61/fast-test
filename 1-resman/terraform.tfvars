@@ -1,0 +1,32 @@
+# -----------------------------------------------------------------------------
+# Google Cloud Organization and Billing
+# -----------------------------------------------------------------------------
+organization_id    = "123456789012"
+billing_account_id = "012345-6789AB-CDEF01"
+prefix             = "fast"
+
+# -----------------------------------------------------------------------------
+# Human Administrator Groups (Google Workspace / Cloud Identity)
+# -----------------------------------------------------------------------------
+admin_principals = {
+  org_admins      = "group:gcp-organization-admins@example.com"
+  network_admins  = "group:gcp-network-admins@example.com"
+  security_admins = "group:gcp-security-admins@example.com"
+  devops_admins   = "group:gcp-devops-admins@example.com"
+}
+
+# -----------------------------------------------------------------------------
+# Automation Service Accounts provisioned in Stage 0 (Bootstrap)
+# -----------------------------------------------------------------------------
+stage0_automation_service_accounts = {
+  resman          = "fast-stage1-resman@fast-prod-iac-0.iam.gserviceaccount.com"
+  networking      = "fast-stage2-net@fast-prod-iac-0.iam.gserviceaccount.com"
+  security        = "fast-stage2-sec@fast-prod-iac-0.iam.gserviceaccount.com"
+  project_factory = "fast-stage2-pf@fast-prod-iac-0.iam.gserviceaccount.com"
+}
+
+# -----------------------------------------------------------------------------
+# Feature Toggles
+# -----------------------------------------------------------------------------
+org_policies_enabled = true
+enable_tags          = true

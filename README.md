@@ -412,4 +412,21 @@ Jos haluat testata pipelineja ennen WIF-infrastruktuurin provisiointia:
 1. Luo palvelutilille JSON-avain GCP-konsolissa tai gcloudilla.
 2. Kopioi koko JSON-tiedoston sisältö GitHub Secretiin nimellä **`GCP_SA_KEY`**.
 
+---
+
+### GitOps-parametrien hallinta CI/CD:ssä (`terraform.tfvars`)
+
+Alemmat vaiheet (`1-resman`, `2-networking`, `2-security`) tarvitsevat aiempien vaiheiden tietoja (kuten `organization_id`, kansio-ID:t ja palvelutilien osoitteet). Repositoriossa käytetään **GitOps-pohjaista parametrien hallintaa**:
+
+1. Jokaisessa stage-kansiossa on oma versionhallittu `terraform.tfvars`-tiedosto:
+   - [`0-bootstrap/terraform.tfvars`](./0-bootstrap/terraform.tfvars)
+   - [`1-resman/terraform.tfvars`](./1-resman/terraform.tfvars)
+   - [`2-networking/terraform.tfvars`](./2-networking/terraform.tfvars)
+   - [`2-security/terraform.tfvars`](./2-security/terraform.tfvars)
+2. [`.gitignore`](./.gitignore) sallii nämä stage-kohtaiset konfiguraatiot (`!*/terraform.tfvars`), samalla estäen arkaluontoiset tiedostot (`*.secret.tfvars`).
+3. Kun infrastruktuuriin tehdään muutoksia (esim. uusi aliverkko, uusi KMS-alue tai muuttuja-arvo), kehittäjä tekee muutoksen koodiin tai kyseiseen `terraform.tfvars`-tiedostoon ja avaa Pull Requestin:
+   - CI/CD suorittaa automaattisesti `terraform plan`:in kyseiselle Stagelle suoraan versionhallitulla `terraform.tfvars`-konfiguraatiolla.
+   - PR:n hyväksymisen ja mergeämisen jälkeen pipeline ajaa automaattisesti `terraform apply -auto-approve`:n pilveen.
+
+
 

@@ -1,0 +1,25 @@
+# -----------------------------------------------------------------------------
+# Google Cloud Foundation Fabric (FAST) - Stage 0 (Bootstrap) Configuration
+# -----------------------------------------------------------------------------
+
+organization_id    = "123456789012"
+billing_account_id = "012345-6789AB-CDEF01"
+prefix             = "fast"
+
+# Multi-region or region for remote state buckets (e.g., 'EU', 'US')
+storage_location = "EU"
+
+# Administrator groups granted impersonation on stage service accounts
+admin_principals = {
+  org_admins      = "group:gcp-organization-admins@example.com"
+  network_admins  = "group:gcp-network-admins@example.com"
+  security_admins = "group:gcp-security-admins@example.com"
+  devops_admins   = "group:gcp-devops-admins@example.com"
+}
+
+grant_org_roles     = true
+grant_billing_roles = true
+
+# Keyless Workload Identity Federation (WIF) for GitHub Actions CI/CD
+enable_wif        = true
+github_repository = "teemu61/fast-test"

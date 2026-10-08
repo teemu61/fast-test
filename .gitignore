@@ -15,18 +15,20 @@ crash.*.log
 # .terraform.lock.hcl
 
 # =============================================================================
-# Terraform Variables & Configuration Files (Secrets, Org IDs, Account Numbers)
+# Terraform Variables & Configuration Files (GitOps CI/CD)
 # =============================================================================
-# Ignore all actual variable files
-*.tfvars
-*.tfvars.json
+# Ignore secret and auto-generated variable files
+*.secret.tfvars
+*.secret.tfvars.json
 *.auto.tfvars
 *.auto.tfvars.json
 
-# Whitelist example variable files for documentation/reference
+# Allow stage configuration tfvars for GitOps CI/CD pipelines
+!*/terraform.tfvars
 !*.tfvars.example
 !*.tfvars.json.example
 !*.example
+
 
 # =============================================================================
 # Google FAST Cross-Stage Output Files (Contain live stage credentials & IDs)
