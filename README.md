@@ -277,6 +277,12 @@ When provisioning application workload projects (e.g., GKE clusters, BigQuery da
 
 ```text
 fast-test/
+├── .github/
+│   └── workflows/
+│       ├── stage-0-bootstrap.yml     # CI/CD: Super-Admin / Seed automation pipeline
+│       ├── stage-1-resman.yml        # CI/CD: Resource Management stage pipeline
+│       ├── stage-2-networking.yml    # CI/CD: Shared VPC & Networking stage pipeline
+│       └── stage-2-security.yml      # CI/CD: Central KMS & Security stage pipeline
 ├── 0-bootstrap/              # Stage 0: Automation project, state buckets, stage SAs, IAM
 │   ├── versions.tf           # Terraform version constraints and providers
 │   ├── variables.tf          # Org ID, billing ID, storage location, admin groups
@@ -338,3 +344,29 @@ For teams building landing zones directly within the cloned [Cloud Foundation Fa
 * `modules/gcs`: Hardened storage buckets.
 * `modules/net-vpc` & `modules/net-cloudnat`: VPCs, subnets, and Cloud NAT.
 * `modules/kms` & `modules/secret-manager`: Cryptography and secrets.
+
+---
+
+## 7. CI/CD Automation (GitHub Actions)
+
+Jokaiselle Stagelle on määritelty oma itsenäinen ja selkeä GitHub Actions CI/CD -pipeline hakemistossa `.github/workflows/`:
+
+| Stage | Pipeline-tiedosto | Suoritusidentiteetti (Least Privilege SA) | Triggers |
+| :--- | :--- | :--- | :--- |
+| **Stage 0** (Bootstrap) | [`.github/workflows/stage-0-bootstrap.yml`](./.github/workflows/stage-0-bootstrap.yml) | Super-Admin / Seed CI (`GCP_STAGE0_SA` tai `GCP_SERVICE_ACCOUNT`) | PR / Push (`0-bootstrap/**`), `workflow_dispatch` |
+| **Stage 1** (Resource Management) | [`.github/workflows/stage-1-resman.yml`](./.github/workflows/stage-1-resman.yml) | `fast-stage1-resman` (`GCP_STAGE1_SA` tai `GCP_SERVICE_ACCOUNT`) | PR / Push (`1-resman/**`), `workflow_dispatch` |
+| **Stage 2** (Networking) | [`.github/workflows/stage-2-networking.yml`](./.github/workflows/stage-2-networking.yml) | `fast-stage2-net` (`GCP_STAGE2_NET_SA` tai `GCP_SERVICE_ACCOUNT`) | PR / Push (`2-networking/**`), `workflow_dispatch` |
+| **Stage 2** (Security) | [`.github/workflows/stage-2-security.yml`](./.github/workflows/stage-2-security.yml) | `fast-stage2-sec` (`GCP_STAGE2_SEC_SA` tai `GCP_SERVICE_ACCOUNT`) | PR / Push (`2-security/**`), `workflow_dispatch` |
+
+### Pipeline-vaiheet:
+1. **Lint & Format**: `terraform fmt -check -diff` varmistaa koodin tyyliohjeiden noudattamisen.
+2. **Init & Validate**: `terraform init` ja `terraform validate` tarkistavat syntaksin ja tarvittavat providerit. (Mikäli GCP-tunnuksia ei ole vielä konfiguroitu, init suoritetaan `-backend=false` -tilassa staattista validointia varten).
+3. **Plan**: Ajetaan automaattisesti Pull Requesteissa sekä manuaalisesti `workflow_dispatch` (action: `plan`).
+4. **Apply**: Ajetaan automaattisesti, kun koodi yhdistetään `main`-haaraan, tai manuaalisesti `workflow_dispatch` (action: `apply`).
+
+### Autentikointi:
+Suositeltu tuotantotapa on Google Cloud **Workload Identity Federation (WIF)**, joka ei vaadi pitkäikäisiä JSON-avaimia:
+- `GCP_WORKLOAD_IDENTITY_PROVIDER`: Workload Identity Provider -resurssipolku GitHubissa.
+- Stage-kohtainen palvelutili (tai yleinen `GCP_SERVICE_ACCOUNT`).
+- Vaihtoehtoisesti voidaan käyttää staattista `GCP_SA_KEY` -salaisuutta kehitysympäristöissä.
+
