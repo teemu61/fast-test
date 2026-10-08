@@ -71,6 +71,7 @@ Stage 1 is executed by the **Resource Management service account** (`fast-stage1
 | [`outputs.tf`](./outputs.tf) | Exported folder IDs and Stage 2 contract variables |
 | [`terraform.tfvars.example`](./terraform.tfvars.example) | Example variable values |
 | [`fabric_module_example.tf.example`](./fabric_module_example.tf.example) | Reference using Cloud Foundation Fabric `modules/folder` |
+| [`2-networking/`](./2-networking) | Complete Stage 2 Networking implementation (Shared VPC, Subnets, NAT, Firewalls, DNS) |
 
 ---
 
@@ -104,8 +105,15 @@ terraform apply
 ### Step 5: Passing Outputs to Stage 2
 Stage 1 outputs the folder IDs and parameters required by Stage 2:
 ```bash
-terraform output -json stage2_networking_inputs > 2-networking.auto.tfvars.json
+terraform output -json stage2_networking_inputs > 2-networking/2-networking.auto.tfvars.json
 terraform output -json stage2_security_inputs > 2-security.auto.tfvars.json
 terraform output -json stage2_project_factory_inputs > 2-project-factory.auto.tfvars.json
 ```
-These can be directly referenced by `2-networking`, `2-security`, and `2-project-factory` to deploy infrastructure into their designated folders.
+To deploy Stage 2 Networking, navigate to [`2-networking/`](./2-networking) and apply:
+```bash
+cd 2-networking
+terraform init
+terraform plan
+terraform apply
+```
+See the [`2-networking/README.md`](./2-networking/README.md) for details on the networking architecture and downstream Stage 3 contracts.
