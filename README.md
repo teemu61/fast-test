@@ -1,19 +1,19 @@
-# Google Cloud Foundation Fabric (FAST) - Stage 1 (Resource Management) Example
+# Google Cloud Foundation Fabric (FAST) - Enterprise Landing Zone
 
-This repository provides a clean, self-contained Terraform example implementing **Google FAST Stage 1** (**Resource Management** / `1-resman`).
+This repository provides clean, modular, and self-contained Terraform implementations of the core stages of **Google Cloud Foundation Fabric (FAST)**.
 
 ---
 
 ## 1. What is Google FAST?
 
-**FAST (Foundations Architecture Setup and Templates)** is Google Cloud's opinionated, modular framework for building enterprise-grade landing zones via Infrastructure-as-Code (Terraform), maintained under [Cloud Foundation Fabric](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric).
+**FAST (Foundations Architecture Setup and Templates)** is Google Cloud's opinionated framework for enterprise landing zones via Infrastructure-as-Code (Terraform), maintained under [Cloud Foundation Fabric](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric).
 
-FAST structures a Google Cloud landing zone into sequential stages:
+FAST splits infrastructure into isolated stages executed by dedicated service accounts enforcing the principle of least privilege:
 
 ```mermaid
 flowchart LR
     S0["Stage 0: Bootstrap\n(0-bootstrap)\nAdmin Identity, SAs, GCS"] --> S1["Stage 1: Resource Management\n(1-resman)\nFolders, Org Policies, IAM Delegation"]
-    S1 --> S2N["Stage 2: Networking\n(2-networking)\nShared VPCs, Interconnect"]
+    S1 --> S2N["Stage 2: Networking\n(2-networking)\nShared VPCs, Subnets, NAT, DNS"]
     S1 --> S2S["Stage 2: Security\n(2-security)\nKMS Keys, CAS, Secrets"]
     S1 --> S2P["Stage 2: Project Factory\n(2-project-factory)\nApplication Projects"]
     S2N --> S3["Stage 3: Workloads\nData Platform, GKE, SecOps"]
@@ -21,104 +21,127 @@ flowchart LR
     S2P --> S3
 ```
 
-> **Note on FAST Versions**:
-> - **Classic FAST (`1-resman`)**: Stage 1 creates the resource hierarchy (folders), org policies, and delegates permissions to downstream service accounts.
-> - **Modern FAST (v44+)**: Combines bootstrap and resource management into YAML-driven `0-org-setup`, shifting Stage 1 to `1-vpcsc` (VPC Service Controls).
-> - This example implements the **core Resource Management pattern (`1-resman`)**, which forms the foundation of all FAST hierarchy designs.
+---
+
+## 2. Implemented Stages
+
+| Stage | Directory | Description |
+| :--- | :--- | :--- |
+| **Stage 0** | [`0-bootstrap/`](./0-bootstrap) | **Bootstrap**: Seeds the automation project, provisioned GCS state buckets for all stages, stage automation service accounts, organization & billing IAM grants, and impersonation. |
+| **Stage 1** | [`1-resman/`](./1-resman) | **Resource Management**: Constructs the folder hierarchy (`Networking`, `Security`, `Common`, `Workloads`), applies organization policies, binds hierarchical tags, and delegates scoped folder permissions to stage SAs. |
+| **Stage 2** | [`2-networking/`](./2-networking) | **Networking**: Provisions the Shared VPC host project, custom VPC network, subnets with Private Google Access (PGA) and secondary GKE ranges, regional Cloud Routers and NAT, baseline firewalls, and Private Cloud DNS. |
 
 ---
 
-## 2. What Stage 1 Does
+## 3. End-to-End Execution Workflow
 
-Stage 1 is executed by the **Resource Management service account** (`fast-stage1-resman`) created during Stage 0. It handles:
+FAST uses **stage contract outputs** to decouple stages while passing required parameters seamlessly without manual configuration.
 
-1. **Resource Hierarchy Creation**:
-   - `Networking` folder: Shared VPC host projects, interconnect, routing.
-   - `Security` folder: Centralized KMS encryption keys, Certificate Authority Service (CAS), Secret Manager.
-   - `Common` folder: Shared tooling, CI runners, container registries.
-   - `Workloads` folder: Sub-folders for `Development` and `Production` application environments.
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Admin as Super-Admin
+    participant S0 as 0-bootstrap
+    participant S1 as 1-resman
+    participant S2 as 2-networking
+    participant S3 as 3-workloads
 
-2. **IAM Delegation (Least Privilege)**:
-   - Grants the **Networking Automation SA** permissions on the `Networking` folder (`roles/compute.xpnAdmin`, `roles/resourcemanager.folderAdmin`, `roles/resourcemanager.projectCreator`).
-   - Grants the **Security Automation SA** permissions on the `Security` folder (`roles/cloudkms.admin`, `roles/resourcemanager.folderAdmin`, `roles/resourcemanager.projectCreator`).
-   - Grants the **Project Factory SA** permissions on the `Workloads` folder (`roles/resourcemanager.projectCreator`).
-
-3. **Organization Policies (Guardrails)**:
-   - `iam.disableServiceAccountKeyCreation`: Prevents downloading static SA keys; forces Workload Identity and short-lived credentials.
-   - `compute.disableSerialPortAccess`: Prevents interactive serial console access to VMs.
-   - `compute.requireOsLogin`: Enforces centralized IAM-based OS Login SSH authentication.
-   - `iam.automaticIamGrantsForDefaultServiceAccounts`: Prevents broad Editor roles from being granted automatically to default service accounts.
-
-4. **Resource Manager Hierarchical Tags**:
-   - Tag keys for `context` (`networking`, `security`, `workloads`) and `environment` (`development`, `production`).
-   - Attached to corresponding folders for conditional IAM and audit controls.
-
-5. **Stage Contract Outputs**:
-   - Emits folder IDs and configuration objects ready for ingestion by Stage 2.
-
----
-
-## 3. File Structure
-
-| File | Purpose |
-| :--- | :--- |
-| [`0-bootstrap/`](./0-bootstrap) | Complete Stage 0 Bootstrap implementation (Automation project, state buckets, stage SAs, IAM) |
-| [`versions.tf`](./versions.tf) | Terraform required version, Google providers, and impersonation settings |
-| [`variables.tf`](./variables.tf) | Input variables (org ID, billing account, stage 0 automation SAs, admin groups) |
-| [`folders.tf`](./folders.tf) | Google Cloud folder definitions (Networking, Security, Common, Workloads) |
-| [`iam.tf`](./iam.tf) | Scoped IAM delegations to downstream stage automation SAs and admin groups |
-| [`org_policies.tf`](./org_policies.tf) | Baseline security organization policies |
-| [`tags.tf`](./tags.tf) | Hierarchical Resource Manager Tag keys, values, and folder bindings |
-| [`outputs.tf`](./outputs.tf) | Exported folder IDs and Stage 2 contract variables |
-| [`terraform.tfvars.example`](./terraform.tfvars.example) | Example variable values |
-| [`fabric_module_example.tf.example`](./fabric_module_example.tf.example) | Reference using Cloud Foundation Fabric `modules/folder` |
-| [`2-networking/`](./2-networking) | Complete Stage 2 Networking implementation (Shared VPC, Subnets, NAT, Firewalls, DNS) |
-
----
-
-## 4. How to Use
-
-### Step 1: Bootstrap Prerequisites or Ingest from Stage 0
-If you have applied [`0-bootstrap/`](./0-bootstrap), export its outputs directly into Stage 1:
-```bash
-cd 0-bootstrap && terraform output -json stage1_resman_inputs > ../1-resman.auto.tfvars.json && cd ..
+    Admin->>S0: terraform apply (Super-Admin credentials)
+    S0-->>S1: stage1_resman_inputs (SAs, Org ID, Billing ID)
+    Admin->>S1: terraform apply (fast-stage1-resman SA)
+    S1-->>S2: stage2_networking_inputs (Networking Folder ID, Billing ID)
+    Admin->>S2: terraform apply (fast-stage2-net SA)
+    S2-->>S3: stage3_workload_inputs (Host Project, VPC, Subnets)
 ```
-Otherwise, copy `terraform.tfvars.example` to `terraform.tfvars`:
+
+### Step 1: Deploy Stage 0 (Bootstrap)
+Stage 0 is applied once using human Super-Admin credentials (`Organization Admin` + `Billing Account Admin`):
 ```bash
+cd 0-bootstrap
 cp terraform.tfvars.example terraform.tfvars
-```
-Update the values:
-- `organization_id`: Your GCP Organization ID.
-- `stage0_automation_service_accounts`: The service accounts provisioned by Stage 0 (or your deployment identities).
-- `admin_principals`: Your organization's Google Groups.
-
-### Step 2: Initialize Terraform
-```bash
-terraform init
-```
-
-### Step 3: Review Plan
-```bash
-terraform plan
-```
-
-### Step 4: Apply Configuration
-```bash
-terraform apply
-```
-
-### Step 5: Passing Outputs to Stage 2
-Stage 1 outputs the folder IDs and parameters required by Stage 2:
-```bash
-terraform output -json stage2_networking_inputs > 2-networking/2-networking.auto.tfvars.json
-terraform output -json stage2_security_inputs > 2-security.auto.tfvars.json
-terraform output -json stage2_project_factory_inputs > 2-project-factory.auto.tfvars.json
-```
-To deploy Stage 2 Networking, navigate to [`2-networking/`](./2-networking) and apply:
-```bash
-cd 2-networking
+# Update organization_id and billing_account_id
 terraform init
 terraform plan
 terraform apply
 ```
-See the [`2-networking/README.md`](./2-networking/README.md) for details on the networking architecture and downstream Stage 3 contracts.
+
+Export contract outputs for Stage 1:
+```bash
+terraform output -json stage1_resman_inputs > ../1-resman/1-resman.auto.tfvars.json
+```
+
+---
+
+### Step 2: Deploy Stage 1 (Resource Management)
+Stage 1 ingests `1-resman.auto.tfvars.json` automatically:
+```bash
+cd ../1-resman
+terraform init
+terraform plan
+terraform apply
+```
+
+Export contract outputs for Stage 2:
+```bash
+terraform output -json stage2_networking_inputs > ../2-networking/2-networking.auto.tfvars.json
+```
+
+---
+
+### Step 3: Deploy Stage 2 (Networking)
+Stage 2 ingests `2-networking.auto.tfvars.json` automatically:
+```bash
+cd ../2-networking
+terraform init
+terraform plan
+terraform apply
+```
+
+Export contract outputs for downstream Stage 3 Workloads / Project Factory:
+```bash
+terraform output -json stage3_workload_inputs > ../3-workloads.auto.tfvars.json
+```
+
+---
+
+## 4. Repository Structure
+
+```text
+fast-test/
+├── 0-bootstrap/              # Stage 0: Automation project, state buckets, SAs, IAM
+│   ├── versions.tf
+│   ├── variables.tf
+│   ├── project.tf
+│   ├── storage.tf
+│   ├── iam.tf
+│   ├── outputs.tf
+│   ├── terraform.tfvars.example
+│   ├── fabric_module_example.tf.example
+│   └── README.md
+├── 1-resman/                 # Stage 1: Resource hierarchy, org policies, tags, delegation
+│   ├── versions.tf
+│   ├── variables.tf
+│   ├── folders.tf
+│   ├── iam.tf
+│   ├── org_policies.tf
+│   ├── tags.tf
+│   ├── outputs.tf
+│   ├── terraform.tfvars.example
+│   ├── fabric_module_example.tf.example
+│   └── README.md
+├── 2-networking/             # Stage 2: Shared VPC host, subnets, NAT, firewall, DNS
+│   ├── versions.tf
+│   ├── variables.tf
+│   ├── project.tf
+│   ├── vpc.tf
+│   ├── subnets.tf
+│   ├── nat.tf
+│   ├── firewall.tf
+│   ├── dns.tf
+│   ├── outputs.tf
+│   ├── terraform.tfvars.example
+│   ├── fabric_module_example.tf.example
+│   └── README.md
+├── resources/                # Architectural diagrams and reference materials
+└── README.md                 # Master landing zone documentation
+```
