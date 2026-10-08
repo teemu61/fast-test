@@ -1,0 +1,42 @@
+/**
+ * Cloud Foundation Fabric (CFF) Module Variant for Stage 2 (Security)
+ *
+ * If you are working directly with the official Cloud Foundation Fabric repository,
+ * FAST Stage 2 uses high-level CFF modules (`project`, `kms`, and `secret-manager`)
+ * instead of raw Terraform resources.
+ *
+ * Below is how the security core project, KMS keyrings, and secrets are configured
+ * using Cloud Foundation Fabric modules:
+ */
+
+/*
+module "sec_project" {
+  source          = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/project?ref=v34.0.0"
+  billing_account = var.billing_account_id
+  name            = "${var.prefix}-${var.environment}-sec-core"
+  parent          = var.folder_id
+  prefix          = var.prefix
+  services = [
+    "cloudkms.googleapis.com",
+    "secretmanager.googleapis.com",
+    "privateca.googleapis.com",
+    "logging.googleapis.com",
+    "monitoring.googleapis.com"
+  ]
+}
+
+module "kms_europe_west1" {
+  source     = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/kms?ref=v34.0.0"
+  project_id = module.sec_project.project_id
+  keyring = {
+    location = "europe-west1"
+    name     = "${var.prefix}-${var.environment}-kr-europe-west1"
+  }
+  keys = {
+    compute  = { rotation_period = var.key_rotation_period }
+    storage  = { rotation_period = var.key_rotation_period }
+    bigquery = { rotation_period = var.key_rotation_period }
+    gke      = { rotation_period = var.key_rotation_period }
+  }
+}
+*/
