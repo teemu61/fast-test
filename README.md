@@ -365,9 +365,51 @@ Jokaiselle Stagelle on määritelty oma itsenäinen ja selkeä GitHub Actions CI
 3. **Plan**: Ajetaan automaattisesti Pull Requesteissa sekä manuaalisesti `workflow_dispatch` (action: `plan`).
 4. **Apply**: Ajetaan automaattisesti, kun koodi yhdistetään `main`-haaraan, tai manuaalisesti `workflow_dispatch` (action: `apply`).
 
-### Autentikointi:
-Suositeltu tuotantotapa on Google Cloud **Workload Identity Federation (WIF)**, joka ei vaadi pitkäikäisiä JSON-avaimia:
-- `GCP_WORKLOAD_IDENTITY_PROVIDER`: Workload Identity Provider -resurssipolku GitHubissa.
-- Stage-kohtainen palvelutili (tai yleinen `GCP_SERVICE_ACCOUNT`).
-- Vaihtoehtoisesti voidaan käyttää staattista `GCP_SA_KEY` -salaisuutta kehitysympäristöissä.
+---
+
+### Autentikoinnin käyttöönotto (Workload Identity Federation):
+
+Tuotantoympäristössä käytetään **Workload Identity Federationia (WIF)**, joka tarjoaa turvallisen ja avaimettoman (keyless) autentikoinnin GitHub Actionsin ja Google Cloudin välille.
+
+```mermaid
+flowchart LR
+    GHA["GitHub Actions\n(OIDC Token)"] -->|OIDC Vaihto| WIF["GCP Workload Identity\nPool & Provider\n(0-bootstrap/wif.tf)"]
+    WIF -->|Impersonation| SA["Stage Palvelutili\n(fast-stage1-resman / fast-stage2-net)"]
+    SA -->|Terraform Plan / Apply| GCP["Google Cloud Resurssit"]
+```
+
+#### Vaihe 1: Aja Stage 0 (Bootstrap)
+Stage 0 luo automaattisesti WIF Poolin (`<prefix>-github-pool`), GitHub OIDC Providerin ja myöntää `roles/iam.workloadIdentityUser` -oikeudet Stage-palvelutileille ([`0-bootstrap/wif.tf`](./0-bootstrap/wif.tf)):
+```bash
+cd 0-bootstrap
+terraform init
+terraform apply
+```
+
+#### Vaihe 2: Hae Workload Identity Providerin arvo
+Ajon jälkeen tulosta providerin koko resurssipolku:
+```bash
+terraform output -raw workload_identity_provider
+```
+Tuloste on muotoa:
+`projects/<PROJECT_NUMBER>/locations/global/workloadIdentityPools/<PREFIX>-github-pool/providers/github-provider`
+
+#### Vaihe 3: Aseta GitHub Secrets
+Mene GitHub-repositoriossa: **Settings -> Secrets and variables -> Actions -> New repository secret** ja tallenna seuraavat salaisuudet:
+
+| Secret | Kuvaus / Arvo | Esimerkki |
+| :--- | :--- | :--- |
+| `GCP_WORKLOAD_IDENTITY_PROVIDER` | Vaiheessa 2 haettu WIF-providerin koko polku | `projects/123456789012/locations/global/workloadIdentityPools/fast-github-pool/providers/github-provider` |
+| `GCP_STAGE1_SA` | Stage 1 (Resource Management) palvelutilin sähköposti | `fast-stage1-resman@fast-prod-iac-0.iam.gserviceaccount.com` |
+| `GCP_STAGE2_NET_SA` | Stage 2 (Networking) palvelutilin sähköposti | `fast-stage2-net@fast-prod-iac-0.iam.gserviceaccount.com` |
+| `GCP_STAGE2_SEC_SA` | Stage 2 (Security) palvelutilin sähköposti | `fast-stage2-sec@fast-prod-iac-0.iam.gserviceaccount.com` |
+| `GCP_STAGE0_SA` *(valinnainen)* | Stage 0 (Bootstrap) seed CI -palvelutili | `fast-prod-iac-0@...` |
+
+*(Voit halutessasi asettaa myös yleisen `GCP_SERVICE_ACCOUNT` -salaisuuden, jota pipelinet käyttävät oletuksena, mikäli stage-kohtaista salaisuutta ei ole erikseen määritelty).*
+
+#### Vaihtoehto B: Testaus staattisella palvelutiliavaimella (Service Account Key)
+Jos haluat testata pipelineja ennen WIF-infrastruktuurin provisiointia:
+1. Luo palvelutilille JSON-avain GCP-konsolissa tai gcloudilla.
+2. Kopioi koko JSON-tiedoston sisältö GitHub Secretiin nimellä **`GCP_SA_KEY`**.
+
 
