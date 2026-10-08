@@ -1,0 +1,67 @@
+/**
+ * Cloud Foundation Fabric (CFF) Module Variant for Stage 2 (Networking)
+ *
+ * If you are working directly with the official Cloud Foundation Fabric repository,
+ * FAST Stage 2 uses high-level CFF modules (`project`, `net-vpc`, and `net-cloudnat`)
+ * instead of raw Terraform resources.
+ *
+ * Below is how the same Shared VPC host project, VPC, subnets, and NAT are configured
+ * using Cloud Foundation Fabric modules:
+ */
+
+/*
+module "host_project" {
+  source          = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/project?ref=v34.0.0"
+  billing_account = var.billing_account_id
+  name            = "${var.prefix}-${var.environment}-net-host"
+  parent          = var.folder_id
+  prefix          = var.prefix
+  services = [
+    "compute.googleapis.com",
+    "dns.googleapis.com",
+    "servicenetworking.googleapis.com",
+    "logging.googleapis.com",
+    "monitoring.googleapis.com"
+  ]
+  shared_vpc_host_config = {
+    host = true
+  }
+}
+
+module "vpc" {
+  source     = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/net-vpc?ref=v34.0.0"
+  project_id = module.host_project.project_id
+  name       = "${var.prefix}-${var.environment}-shared-vpc"
+
+  subnets = [
+    {
+      name                  = "prod-europe-west1-core"
+      region                = "europe-west1"
+      ip_cidr_range         = "10.10.0.0/24"
+      enable_private_access = true
+      secondary_ip_ranges = {
+        pods     = "10.100.0.0/16"
+        services = "10.101.0.0/20"
+      }
+    },
+    {
+      name                  = "prod-europe-west4-core"
+      region                = "europe-west4"
+      ip_cidr_range         = "10.20.0.0/24"
+      enable_private_access = true
+      secondary_ip_ranges = {
+        pods     = "10.200.0.0/16"
+        services = "10.201.0.0/20"
+      }
+    }
+  ]
+}
+
+module "nat_europe_west1" {
+  source         = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/net-cloudnat?ref=v34.0.0"
+  project_id     = module.host_project.project_id
+  region         = "europe-west1"
+  name           = "${var.prefix}-${var.environment}-nat-ew1"
+  router_network = module.vpc.name
+}
+*/

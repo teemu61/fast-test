@@ -1,0 +1,39 @@
+# -----------------------------------------------------------------------------
+# Google Cloud Foundation Fabric (FAST) - Stage 2 (Networking) Example tfvars
+# -----------------------------------------------------------------------------
+# If you exported Stage 1 outputs via:
+#   terraform output -json stage2_networking_inputs > 2-networking.auto.tfvars.json
+# the variables 'folder_id', 'billing_account_id', and 'automation_sa' are populated
+# automatically. This file serves as a reference or for standalone execution.
+# -----------------------------------------------------------------------------
+
+folder_id          = "folders/123456789012"
+billing_account_id = "012345-6789AB-CDEF01"
+automation_sa      = "fast-stage2-net@fast-prod-iac-0.iam.gserviceaccount.com"
+
+prefix      = "fast"
+environment = "prod"
+
+# Optional: provide a fixed project ID (leave null to generate prefix-env-net-host-xxxx)
+# project_id = "fast-prod-net-host-01"
+
+# Feature toggles
+enable_cloud_nat          = true
+enable_baseline_firewall  = true
+enable_private_dns        = true
+dns_domain                = "gcp.internal."
+
+# Subnet customizations (defaults create europe-west1 and europe-west4 core subnets)
+# subnets = [
+#   {
+#     name          = "prod-europe-west1-core"
+#     region        = "europe-west1"
+#     ip_cidr_range = "10.10.0.0/24"
+#     description   = "Primary production subnet"
+#     secondary_ip_ranges = [
+#       { range_name = "pods", ip_cidr_range = "10.100.0.0/16" },
+#       { range_name = "services", ip_cidr_range = "10.101.0.0/20" }
+#     ]
+#     flow_logs_enabled = true
+#   }
+# ]
