@@ -1,0 +1,28 @@
+# -----------------------------------------------------------------------------
+# Google Cloud Foundation Fabric (FAST) - Stage 2 (Security) Example tfvars
+# -----------------------------------------------------------------------------
+# If you exported Stage 1 outputs via:
+#   terraform output -json stage2_security_inputs > 2-security.auto.tfvars.json
+# the variables 'folder_id', 'billing_account_id', and 'automation_sa' are populated
+# automatically. This file serves as a reference or for standalone execution.
+# -----------------------------------------------------------------------------
+
+folder_id          = "folders/123456789012"
+billing_account_id = "012345-6789AB-CDEF01"
+automation_sa      = "fast-stage2-sec@fast-prod-iac-0.iam.gserviceaccount.com"
+
+prefix      = "fast"
+environment = "prod"
+
+# Optional: provide a fixed project ID (leave null to generate prefix-env-sec-core-xxxx)
+# project_id = "fast-prod-sec-core-01"
+
+# Cloud KMS regions and CMEK purposes
+kms_regions       = ["europe-west1", "europe-west4"]
+kms_key_purposes  = ["compute", "storage", "bigquery", "gke"]
+key_rotation_period = "7776000s" # 90 days
+
+# Feature toggles
+enable_secret_manager = true
+enable_ca_service     = true
+ca_pool_tier          = "DEVOPS"
