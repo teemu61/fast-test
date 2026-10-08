@@ -62,6 +62,7 @@ Stage 1 is executed by the **Resource Management service account** (`fast-stage1
 
 | File | Purpose |
 | :--- | :--- |
+| [`0-bootstrap/`](./0-bootstrap) | Complete Stage 0 Bootstrap implementation (Automation project, state buckets, stage SAs, IAM) |
 | [`versions.tf`](./versions.tf) | Terraform required version, Google providers, and impersonation settings |
 | [`variables.tf`](./variables.tf) | Input variables (org ID, billing account, stage 0 automation SAs, admin groups) |
 | [`folders.tf`](./folders.tf) | Google Cloud folder definitions (Networking, Security, Common, Workloads) |
@@ -77,8 +78,12 @@ Stage 1 is executed by the **Resource Management service account** (`fast-stage1
 
 ## 4. How to Use
 
-### Step 1: Prepare variables
-Copy `terraform.tfvars.example` to `terraform.tfvars`:
+### Step 1: Bootstrap Prerequisites or Ingest from Stage 0
+If you have applied [`0-bootstrap/`](./0-bootstrap), export its outputs directly into Stage 1:
+```bash
+cd 0-bootstrap && terraform output -json stage1_resman_inputs > ../1-resman.auto.tfvars.json && cd ..
+```
+Otherwise, copy `terraform.tfvars.example` to `terraform.tfvars`:
 ```bash
 cp terraform.tfvars.example terraform.tfvars
 ```
