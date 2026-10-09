@@ -375,87 +375,87 @@ For teams building landing zones directly within the cloned [Cloud Foundation Fa
 
 ## 7. CI/CD Automation (GitHub Actions)
 
-Jokaiselle Stagelle on määritelty oma itsenäinen ja selkeä GitHub Actions CI/CD -pipeline hakemistossa `.github/workflows/`:
+Each Stage has its own dedicated, isolated GitHub Actions CI/CD pipeline defined in `.github/workflows/`:
 
-| Stage | Pipeline-tiedosto | Suoritusidentiteetti (Least Privilege SA) | Triggers |
+| Stage | Pipeline File | Execution Identity (Least Privilege SA) | Triggers |
 | :--- | :--- | :--- | :--- |
-| **Stage 0** (Bootstrap) | [`.github/workflows/stage-0-bootstrap.yml`](./.github/workflows/stage-0-bootstrap.yml) | Super-Admin / Seed CI (`GCP_STAGE0_SA` tai `GCP_SERVICE_ACCOUNT`) | PR / Push (`0-bootstrap/**`), `workflow_dispatch` |
-| **Stage 1** (Resource Management) | [`.github/workflows/stage-1-resman.yml`](./.github/workflows/stage-1-resman.yml) | `fast-stage1-resman` (`GCP_STAGE1_SA` tai `GCP_SERVICE_ACCOUNT`) | PR / Push (`1-resman/**`), `workflow_dispatch` |
-| **Stage 2** (Networking) | [`.github/workflows/stage-2-networking.yml`](./.github/workflows/stage-2-networking.yml) | `fast-stage2-net` (`GCP_STAGE2_NET_SA` tai `GCP_SERVICE_ACCOUNT`) | PR / Push (`2-networking/**`), `workflow_dispatch` |
-| **Stage 2** (Security) | [`.github/workflows/stage-2-security.yml`](./.github/workflows/stage-2-security.yml) | `fast-stage2-sec` (`GCP_STAGE2_SEC_SA` tai `GCP_SERVICE_ACCOUNT`) | PR / Push (`2-security/**`), `workflow_dispatch` |
-| **Stage 3** (Workloads) | [`.github/workflows/stage-3-workloads.yml`](./.github/workflows/stage-3-workloads.yml) | `fast-stage2-pf` (`GCP_STAGE3_SA` tai `GCP_SERVICE_ACCOUNT`) | PR / Push (`3-workloads/**`), `workflow_dispatch` |
+| **Stage 0** (Bootstrap) | [`.github/workflows/stage-0-bootstrap.yml`](./.github/workflows/stage-0-bootstrap.yml) | Super-Admin / Seed CI (`GCP_STAGE0_SA` or `GCP_SERVICE_ACCOUNT`) | PR / Push (`0-bootstrap/**`), `workflow_dispatch` |
+| **Stage 1** (Resource Management) | [`.github/workflows/stage-1-resman.yml`](./.github/workflows/stage-1-resman.yml) | `fast-stage1-resman` (`GCP_STAGE1_SA` or `GCP_SERVICE_ACCOUNT`) | PR / Push (`1-resman/**`), `workflow_dispatch` |
+| **Stage 2** (Networking) | [`.github/workflows/stage-2-networking.yml`](./.github/workflows/stage-2-networking.yml) | `fast-stage2-net` (`GCP_STAGE2_NET_SA` or `GCP_SERVICE_ACCOUNT`) | PR / Push (`2-networking/**`), `workflow_dispatch` |
+| **Stage 2** (Security) | [`.github/workflows/stage-2-security.yml`](./.github/workflows/stage-2-security.yml) | `fast-stage2-sec` (`GCP_STAGE2_SEC_SA` or `GCP_SERVICE_ACCOUNT`) | PR / Push (`2-security/**`), `workflow_dispatch` |
+| **Stage 3** (Workloads) | [`.github/workflows/stage-3-workloads.yml`](./.github/workflows/stage-3-workloads.yml) | `fast-stage2-pf` (`GCP_STAGE3_SA` or `GCP_SERVICE_ACCOUNT`) | PR / Push (`3-workloads/**`), `workflow_dispatch` |
 
-
-### Pipeline-vaiheet:
-1. **Lint & Format**: `terraform fmt -check -diff` varmistaa koodin tyyliohjeiden noudattamisen.
-2. **Init & Validate**: `terraform init` ja `terraform validate` tarkistavat syntaksin ja tarvittavat providerit. (Mikäli GCP-tunnuksia ei ole vielä konfiguroitu, init suoritetaan `-backend=false` -tilassa staattista validointia varten).
-3. **Plan**: Ajetaan automaattisesti Pull Requesteissa sekä manuaalisesti `workflow_dispatch` (action: `plan`).
-4. **Apply**: Ajetaan automaattisesti, kun koodi yhdistetään `main`-haaraan, tai manuaalisesti `workflow_dispatch` (action: `apply`).
+### Pipeline Execution Lifecycle:
+1. **Lint & Format**: `terraform fmt -check -diff` enforces codebase formatting and style standards.
+2. **Init & Validate**: `terraform init` and `terraform validate` check syntax, block structures, and required providers. (If GCP credentials are not yet configured in GitHub Secrets, init runs with `-backend=false` for static pre-flight validation).
+3. **Plan**: Runs automatically on Pull Requests and manually via `workflow_dispatch` (action: `plan`).
+4. **Apply**: Runs automatically on push / merge to `main`, or manually via `workflow_dispatch` (action: `apply`).
 
 ---
 
-### Autentikoinnin käyttöönotto (Workload Identity Federation):
+### Authentication Setup: Workload Identity Federation (WIF)
 
-Tuotantoympäristössä käytetään **Workload Identity Federationia (WIF)**, joka tarjoaa turvallisen ja avaimettoman (keyless) autentikoinnin GitHub Actionsin ja Google Cloudin välille.
+In production environments, **Workload Identity Federation (WIF)** provides secure, keyless authentication between GitHub Actions and Google Cloud:
 
 ```mermaid
 flowchart LR
-    GHA["GitHub Actions\n(OIDC Token)"] -->|OIDC Vaihto| WIF["GCP Workload Identity\nPool & Provider\n(0-bootstrap/wif.tf)"]
-    WIF -->|Impersonation| SA["Stage Palvelutili\n(fast-stage1-resman / fast-stage2-net)"]
-    SA -->|Terraform Plan / Apply| GCP["Google Cloud Resurssit"]
+    GHA["GitHub Actions\n(OIDC Token)"] -->|OIDC Exchange| WIF["GCP Workload Identity\nPool & Provider\n(0-bootstrap/wif.tf)"]
+    WIF -->|Impersonation| SA["Stage Service Account\n(fast-stage1-resman / fast-stage2-net)"]
+    SA -->|Terraform Plan / Apply| GCP["Google Cloud Resources"]
 ```
 
-#### Vaihe 1: Aja Stage 0 (Bootstrap)
-Stage 0 luo automaattisesti WIF Poolin (`<prefix>-github-pool`), GitHub OIDC Providerin ja myöntää `roles/iam.workloadIdentityUser` -oikeudet Stage-palvelutileille ([`0-bootstrap/wif.tf`](./0-bootstrap/wif.tf)):
+#### Step 1: Deploy Stage 0 (Bootstrap)
+Stage 0 automatically provisions the Workload Identity Pool (`<prefix>-github-pool`), GitHub OIDC Provider, and delegates `roles/iam.workloadIdentityUser` to the stage automation service accounts ([`0-bootstrap/wif.tf`](./0-bootstrap/wif.tf)):
 ```bash
 cd 0-bootstrap
 terraform init
 terraform apply
 ```
 
-#### Vaihe 2: Hae Workload Identity Providerin arvo
-Ajon jälkeen tulosta providerin koko resurssipolku:
+#### Step 2: Retrieve the Workload Identity Provider Resource Path
+After deployment, retrieve the full provider resource identifier:
 ```bash
 terraform output -raw workload_identity_provider
 ```
-Tuloste on muotoa:
+The output format is:
 `projects/<PROJECT_NUMBER>/locations/global/workloadIdentityPools/<PREFIX>-github-pool/providers/github-provider`
 
-#### Vaihe 3: Aseta GitHub Secrets
-Mene GitHub-repositoriossa: **Settings -> Secrets and variables -> Actions -> New repository secret** ja tallenna seuraavat salaisuudet:
+#### Step 3: Configure GitHub Secrets
+In your GitHub repository, navigate to: **Settings -> Secrets and variables -> Actions -> New repository secret** and save the following secrets:
 
-| Secret | Kuvaus / Arvo | Esimerkki |
+| Secret | Description / Value | Example |
 | :--- | :--- | :--- |
-| `GCP_WORKLOAD_IDENTITY_PROVIDER` | Vaiheessa 2 haettu WIF-providerin koko polku | `projects/123456789012/locations/global/workloadIdentityPools/fast-github-pool/providers/github-provider` |
-| `GCP_STAGE1_SA` | Stage 1 (Resource Management) palvelutilin sähköposti | `fast-stage1-resman@fast-prod-iac-0.iam.gserviceaccount.com` |
-| `GCP_STAGE2_NET_SA` | Stage 2 (Networking) palvelutilin sähköposti | `fast-stage2-net@fast-prod-iac-0.iam.gserviceaccount.com` |
-| `GCP_STAGE2_SEC_SA` | Stage 2 (Security) palvelutilin sähköposti | `fast-stage2-sec@fast-prod-iac-0.iam.gserviceaccount.com` |
-| `GCP_STAGE3_SA` | Stage 3 (Workloads) palvelutilin sähköposti | `fast-stage2-pf@fast-prod-iac-0.iam.gserviceaccount.com` |
-| `GCP_STAGE0_SA` *(valinnainen)* | Stage 0 (Bootstrap) seed CI -palvelutili | `fast-prod-iac-0@...` |
+| `GCP_WORKLOAD_IDENTITY_PROVIDER` | Full resource name of the WIF Provider retrieved in Step 2 | `projects/123456789012/locations/global/workloadIdentityPools/fast-github-pool/providers/github-provider` |
+| `GCP_STAGE1_SA` | Stage 1 (Resource Management) Service Account email | `fast-stage1-resman@fast-prod-iac-0.iam.gserviceaccount.com` |
+| `GCP_STAGE2_NET_SA` | Stage 2 (Networking) Service Account email | `fast-stage2-net@fast-prod-iac-0.iam.gserviceaccount.com` |
+| `GCP_STAGE2_SEC_SA` | Stage 2 (Security) Service Account email | `fast-stage2-sec@fast-prod-iac-0.iam.gserviceaccount.com` |
+| `GCP_STAGE3_SA` | Stage 3 (Workloads) Service Account email | `fast-stage2-pf@fast-prod-iac-0.iam.gserviceaccount.com` |
+| `GCP_STAGE0_SA` *(optional)* | Stage 0 (Bootstrap) Seed CI Service Account | `fast-prod-iac-0@...` |
 
-*(Voit halutessasi asettaa myös yleisen `GCP_SERVICE_ACCOUNT` -salaisuuden, jota pipelinet käyttävät oletuksena, mikäli stage-kohtaista salaisuutta ei ole erikseen määritelty).*
+*(Optionally, you can define a single fallback `GCP_SERVICE_ACCOUNT` secret used as a default across all stages if stage-specific secrets are omitted).*
 
-#### Vaihtoehto B: Testaus staattisella palvelutiliavaimella (Service Account Key)
-Jos haluat testata pipelineja ennen WIF-infrastruktuurin provisiointia:
-1. Luo palvelutilille JSON-avain GCP-konsolissa tai gcloudilla.
-2. Kopioi koko JSON-tiedoston sisältö GitHub Secretiin nimellä **`GCP_SA_KEY`**.
+#### Alternative B: Testing with a Service Account JSON Key
+To test pipelines before provisioning WIF infrastructure:
+1. Create a service account key in the GCP Console or via `gcloud`.
+2. Copy the entire JSON key file content into a GitHub Secret named **`GCP_SA_KEY`**.
 
 ---
 
-### GitOps-parametrien hallinta CI/CD:ssä (`terraform.tfvars`)
+### GitOps Parameter Management in CI/CD (`terraform.tfvars`)
 
-Alemmat vaiheet (`1-resman`, `2-networking`, `2-security`, `3-workloads`) tarvitsevat aiempien vaiheiden tietoja (kuten `organization_id`, kansio-ID:t ja palvelutilien osoitteet). Repositoriossa käytetään **GitOps-pohjaista parametrien hallintaa**:
+Downstream stages (`1-resman`, `2-networking`, `2-security`, `3-workloads`) consume parameters emitted by upstream stages (such as `organization_id`, folder IDs, and automation service accounts). The repository adopts a **GitOps parameter workflow**:
 
-1. Jokaisessa stage-kansiossa on oma versionhallittu `terraform.tfvars`-tiedosto:
+1. Each stage directory maintains its own version-controlled `terraform.tfvars` file:
    - [`0-bootstrap/terraform.tfvars`](./0-bootstrap/terraform.tfvars)
    - [`1-resman/terraform.tfvars`](./1-resman/terraform.tfvars)
    - [`2-networking/terraform.tfvars`](./2-networking/terraform.tfvars)
    - [`2-security/terraform.tfvars`](./2-security/terraform.tfvars)
    - [`3-workloads/terraform.tfvars`](./3-workloads/terraform.tfvars)
-2. [`.gitignore`](./.gitignore) sallii nämä stage-kohtaiset konfiguraatiot (`!*/terraform.tfvars`), samalla estäen arkaluontoiset tiedostot (`*.secret.tfvars`).
-3. Kun infrastruktuuriin tehdään muutoksia (esim. uusi aliverkko, uusi KMS-alue, Cloud Run -konfiguraatio tai muuttuja-arvo), kehittäjä tekee muutoksen koodiin tai kyseiseen `terraform.tfvars`-tiedostoon ja avaa Pull Requestin:
-   - CI/CD suorittaa automaattisesti `terraform plan`:in kyseiselle Stagelle suoraan versionhallitulla `terraform.tfvars`-konfiguraatiolla.
-   - PR:n hyväksymisen ja mergeämisen jälkeen pipeline ajaa automaattisesti `terraform apply -auto-approve`:n pilveen.
+2. [`.gitignore`](./.gitignore) explicitly whitelists these stage configuration files (`!*/terraform.tfvars`) while preventing accidental commits of secret credentials (`*.secret.tfvars`).
+3. When infrastructure configurations change (e.g. adding a subnet, modifying KMS regions, updating Cloud Run scaling, or tweaking YAML parameters in `3-workloads/data/`), developers submit a Pull Request:
+   - CI/CD automatically runs `terraform plan` for that stage using the version-controlled `terraform.tfvars`.
+   - Upon review and merge into `main`, the stage pipeline automatically executes `terraform apply -auto-approve` against Google Cloud.
+
 
 
 
