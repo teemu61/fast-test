@@ -11,7 +11,7 @@ resource "random_string" "project_suffix" {
 }
 
 locals {
-  project_id = var.project_id != null ? var.project_id : substr("${var.prefix}-${var.environment}-app-${random_string.project_suffix.result}", 0, 30)
+  project_id = var.project_id != null ? var.project_id : substr("${var.prefix}-${local.environment}-app-${random_string.project_suffix.result}", 0, 30)
 }
 
 # -----------------------------------------------------------------------------
@@ -19,18 +19,19 @@ locals {
 # -----------------------------------------------------------------------------
 
 resource "google_project" "workload" {
-  name            = "${var.prefix}-${var.environment}-app"
+  name            = "${var.prefix}-${local.environment}-app"
   project_id      = local.project_id
   folder_id       = var.folder_id
   billing_account = var.billing_account_id
 
   labels = {
-    environment = var.environment
+    environment = local.environment
     stage       = "stage3-workloads"
-    application = "hello-world"
+    application = local.app_name
     managed_by  = "terraform-fast"
   }
 }
+
 
 # -----------------------------------------------------------------------------
 # Enable Project APIs

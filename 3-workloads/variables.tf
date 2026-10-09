@@ -115,3 +115,14 @@ variable "memory" {
   type        = string
   default     = "512Mi"
 }
+
+# -----------------------------------------------------------------------------
+# Declarative YAML Configuration File
+# -----------------------------------------------------------------------------
+
+variable "app_config_file" {
+  description = "Path to the declarative application YAML configuration file relative to the module root."
+  type        = string
+  default     = "data/hello-world.yaml"
+}
+

@@ -1,0 +1,37 @@
+# =============================================================================
+# Google FAST Stage 3: Application Configuration (YAML)
+# Defines container, scaling, resources, and access settings for Cloud Run.
+# =============================================================================
+
+name: hello-world
+environment: dev
+region: europe-west1
+
+# Container image and runtime configuration
+# Note: Cloud Run requires an HTTP web server listening on port 8080.
+# The CLI hello-world binary from Docker Hub (https://hub.docker.com/_/hello-world)
+# prints a text message and immediately terminates (exit 0).
+# For web workloads, us-docker.pkg.dev/cloudrun/container/hello or
+# docker.io/nginxdemos/hello is recommended.
+container:
+  image: us-docker.pkg.dev/cloudrun/container/hello
+  docker_hub_reference: https://hub.docker.com/_/hello-world
+  port: 8080
+  resources:
+    cpu: "1"
+    memory: "512Mi"
+
+# Autoscaling policy
+scaling:
+  min_instances: 0
+  max_instances: 5
+
+# Network ingress & access policy
+access:
+  allow_unauthenticated: true
+
+# Environment variables injected into the container
+env:
+  ENVIRONMENT: dev
+  APP_NAME: hello-world
+  MANAGED_BY: terraform-fast

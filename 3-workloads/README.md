@@ -42,7 +42,41 @@ The image is fully configurable via the `container_image` variable.
 
 ---
 
-## 3. Resources Provisioned
+## 3. Declarative YAML Application Configuration
+
+Following Google Cloud Foundation Fabric (FAST) best practices, infrastructure orchestration is decoupled from application configuration. Application developers configure workloads declaratively using clean YAML files in [`data/`](./data):
+
+```yaml
+# 3-workloads/data/hello-world.yaml
+name: hello-world
+environment: dev
+region: europe-west1
+
+container:
+  image: us-docker.pkg.dev/cloudrun/container/hello
+  docker_hub_reference: https://hub.docker.com/_/hello-world
+  port: 8080
+  resources:
+    cpu: "1"
+    memory: "512Mi"
+
+scaling:
+  min_instances: 0
+  max_instances: 5
+
+access:
+  allow_unauthenticated: true
+
+env:
+  ENVIRONMENT: dev
+  APP_NAME: hello-world
+```
+
+Terraform reads and parses this YAML file dynamically via [`locals.tf`](./locals.tf) using `yamldecode()`. Developers can tweak images, scale limits, CPU/memory, and environment variables directly in the YAML file without modifying Terraform HCL.
+
+---
+
+## 4. Resources Provisioned
 
 1. **Workload Application Project**:
    - Created in the designated Workloads folder (`folder_id`).
@@ -62,21 +96,23 @@ The image is fully configurable via the `container_image` variable.
 
 ---
 
-## 4. File Structure
+## 5. File Structure
 
 | File | Purpose |
 | :--- | :--- |
+| [`data/hello-world.yaml`](./data/hello-world.yaml) | Declarative application definition (image, ports, CPU, RAM, scaling, env) |
+| [`locals.tf`](./locals.tf) | Decodes YAML data via `yamldecode()` into Terraform configuration |
 | [`versions.tf`](./versions.tf) | Terraform version `>= 1.5.0` and Google provider constraints |
-| [`variables.tf`](./variables.tf) | Input variables for folder, billing, image, scaling, and region |
+| [`variables.tf`](./variables.tf) | Input variables for folder, billing, and YAML file path |
 | [`project.tf`](./project.tf) | Workload application project creation and API activation |
 | [`cloud_run.tf`](./cloud_run.tf) | Cloud Run v2 service, runtime SA, and invoker IAM policy |
 | [`outputs.tf`](./outputs.tf) | Public HTTPS service URL, project ID, and service details |
-| [`terraform.tfvars`](./terraform.tfvars) | GitOps configuration file |
+| [`terraform.tfvars`](./terraform.tfvars) | GitOps landing zone parameters |
 | [`terraform.tfvars.example`](./terraform.tfvars.example) | Example variable configuration |
 
 ---
 
-## 5. How to Deploy
+## 6. How to Deploy
 
 ### Local Deployment
 ```bash

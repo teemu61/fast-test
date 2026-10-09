@@ -1,7 +1,7 @@
 /**
  * Google FAST Stage 3: Cloud Run Serverless Application
  * Deploys the Hello World container service, runtime service account,
- * and IAM invoker bindings.
+ * and IAM invoker bindings configured from declarative YAML (data/*.yaml).
  */
 
 # -----------------------------------------------------------------------------
@@ -10,7 +10,7 @@
 
 resource "google_service_account" "cloud_run_sa" {
   project      = google_project.workload.project_id
-  account_id   = "${var.prefix}-${var.environment}-hello-run-sa"
+  account_id   = "${var.prefix}-${local.environment}-hello-run-sa"
   display_name = "Cloud Run Hello World Runtime SA"
   description  = "Dedicated runtime service account for the hello-world Cloud Run service"
 
@@ -22,8 +22,8 @@ resource "google_service_account" "cloud_run_sa" {
 # -----------------------------------------------------------------------------
 
 resource "google_cloud_run_v2_service" "hello_world" {
-  name     = "${var.prefix}-${var.environment}-hello-world"
-  location = var.region
+  name     = "${var.prefix}-${local.environment}-${local.app_name}"
+  location = local.region
   project  = google_project.workload.project_id
 
   ingress = "INGRESS_TRAFFIC_ALL"
@@ -32,31 +32,37 @@ resource "google_cloud_run_v2_service" "hello_world" {
     service_account = google_service_account.cloud_run_sa.email
 
     scaling {
-      min_instance_count = var.min_instance_count
-      max_instance_count = var.max_instance_count
+      min_instance_count = local.min_instances
+      max_instance_count = local.max_instances
     }
 
     containers {
-      image = var.container_image
+      image = local.container_image
 
       resources {
         limits = {
-          cpu    = var.cpu
-          memory = var.memory
+          cpu    = local.cpu
+          memory = local.memory
         }
       }
 
       ports {
-        container_port = 8080
+        container_port = local.container_port
       }
 
-      env {
-        name  = "ENVIRONMENT"
-        value = var.environment
-      }
+      # Static tracking environment variable for the requested Docker Hub reference
       env {
         name  = "DOCKER_HUB_IMAGE"
-        value = var.docker_hub_image_reference
+        value = local.docker_hub_ref
+      }
+
+      # Dynamic environment variables defined in the YAML file
+      dynamic "env" {
+        for_each = local.env_vars
+        content {
+          name  = env.key
+          value = tostring(env.value)
+        }
       }
     }
   }
@@ -73,7 +79,7 @@ resource "google_cloud_run_v2_service" "hello_world" {
 
 # Public unauthenticated access (when allow_unauthenticated = true)
 resource "google_cloud_run_v2_service_iam_member" "public_access" {
-  count    = var.allow_unauthenticated ? 1 : 0
+  count    = local.allow_unauthenticated ? 1 : 0
   project  = google_cloud_run_v2_service.hello_world.project
   location = google_cloud_run_v2_service.hello_world.location
   name     = google_cloud_run_v2_service.hello_world.name
@@ -83,10 +89,11 @@ resource "google_cloud_run_v2_service_iam_member" "public_access" {
 
 # Scoped principal access (when allow_unauthenticated = false)
 resource "google_cloud_run_v2_service_iam_member" "authenticated_access" {
-  for_each = var.allow_unauthenticated ? toset([]) : toset(var.invoker_members)
+  for_each = local.allow_unauthenticated ? toset([]) : toset(var.invoker_members)
   project  = google_cloud_run_v2_service.hello_world.project
   location = google_cloud_run_v2_service.hello_world.location
   name     = google_cloud_run_v2_service.hello_world.name
   role     = "roles/run.invoker"
   member   = each.value
 }
+
