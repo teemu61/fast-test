@@ -18,10 +18,9 @@ flowchart LR
     S0["Stage 0: Bootstrap\n(0-bootstrap)\nAdmin Identity, SAs, GCS State"] --> S1["Stage 1: Resource Management\n(1-resman)\nFolders, Org Policies, IAM Delegation, Tags"]
     S1 --> S2N["Stage 2: Networking\n(2-networking)\nShared VPCs, Subnets, NAT, DNS"]
     S1 --> S2S["Stage 2: Security\n(2-security)\nKMS CMEK, CAS, Secret Manager"]
-    S1 -.-> S2P["Stage 2: Project Factory\n(2-project-factory)\nApplication Projects"]
-    S2N --> S3["Stage 3: Workloads\nApp VPC Attachment, GKE, Data Platform"]
-    S2S --> S3
-    S2P -.-> S3
+    S1 --> S3["Stage 3: Workloads\n(3-workloads)\nCloud Run Serverless App"]
+    S2N -.->|Shared VPC| S3
+    S2S -.->|CMEK Encryption| S3
 ```
 
 ---
@@ -115,13 +114,21 @@ flowchart LR
 ---
 
 ### Stage 3: Workloads ([`3-workloads/`](./3-workloads))
-* **Purpose**: Provisions isolated application workload projects inside the `Workloads` folder and deploys containerized serverless applications on **Cloud Run**.
-* **Execution Identity**: Executed by the **Project Factory / Workloads Service Account** (`fast-stage2-pf`).
+* **Purpose**: Provisions isolated application workload projects inside the `Workloads` folder and deploys containerized serverless applications on **Cloud Run** using a declarative, data-driven approach.
+* **Execution Identity**: Executed by the **Project Factory / Workloads Service Account** (`fast-stage2-pf`) created in Stage 0.
 * **Key Resources Created**:
-  * **Workload Application Project** (`fast-dev-app`): Created inside the `Workloads/Development` folder with APIs enabled (`run`, `compute`, `iam`, `logging`, `monitoring`).
-  * **Runtime Service Account** (`fast-dev-hello-run-sa`): Dedicated least-privilege identity for the Cloud Run container.
-  * **Cloud Run v2 Service** (`fast-dev-hello-world`): Serverless container running the Hello World application with scale-to-zero autoscaling (0–5 instances) and public/authenticated HTTPS ingress.
-* **Outputs**: `service_url` (public HTTPS endpoint), `project_id`, `service_account_email`.
+  * **Workload Application Project** (`fast-dev-app-xxxx`): Created inside the `Workloads/Development` folder (`folder_id`) with billing attached and APIs enabled (`run.googleapis.com`, `compute.googleapis.com`, `iam.googleapis.com`, `logging.googleapis.com`, `monitoring.googleapis.com`).
+  * **Dedicated Runtime Service Account** (`fast-dev-hello-run-sa`): Follows least-privilege principles by giving the container only the permissions it needs.
+  * **Cloud Run v2 Service** (`fast-dev-hello-world`): Serverless container running the application with configurable scale-to-zero autoscaling (`min_instance_count = 0`, `max_instance_count = 5`), CPU/memory allocations (`1` vCPU, `512Mi` RAM), and public or authenticated HTTPS ingress.
+  * **Invoker IAM Permissions**: Grants `roles/run.invoker` to `allUsers` (when `allow_unauthenticated = true`) or scoped principals (`invoker_members`).
+* **Declarative YAML Application Configuration (`data/*.yaml`)**:
+  * Infrastructure orchestration is decoupled from application configuration: developers configure workloads declaratively using clean YAML files in [`3-workloads/data/`](./3-workloads/data).
+  * Terraform dynamically parses YAML files via `yamldecode()` in [`3-workloads/locals.tf`](./3-workloads/locals.tf).
+  * Developers can adjust container images, scale limits, CPU/memory, ports, and environment variables directly in YAML without modifying Terraform HCL.
+* **Container Runtime Considerations**:
+  * Cloud Run requires an HTTP web server listening on the port defined by `$PORT` (default `8080`).
+  * Works out-of-the-box with Google Cloud's official `us-docker.pkg.dev/cloudrun/container/hello` or `docker.io/nginxdemos/hello`. (CLI-only images like Docker Hub's `hello-world` print text and exit immediately, failing Cloud Run health checks).
+* **Outputs**: `service_url` (public HTTPS endpoint), `project_id`, `service_account_email`, `service_name`, `region`.
 
 ---
 
@@ -145,22 +152,25 @@ FAST eliminates manual configuration between stages by passing declarative contr
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Admin as Super-Admin
+    actor Admin as Super-Admin / DevOps
     participant S0 as 0-bootstrap
     participant S1 as 1-resman
     participant S2N as 2-networking
     participant S2S as 2-security
-    participant S3 as 3-workloads (Downstream)
+    participant S3 as 3-workloads
 
     Admin->>S0: terraform apply (Super-Admin credentials)
     S0-->>S1: stage1_resman_inputs (SAs, Org ID, Billing ID)
     Admin->>S1: terraform apply (fast-stage1-resman SA)
     S1-->>S2N: stage2_networking_inputs (Networking Folder ID, Billing ID)
     S1-->>S2S: stage2_security_inputs (Security Folder ID, Billing ID)
+    S1-->>S3: stage2_project_factory_inputs (Workloads Folder ID)
     Admin->>S2N: terraform apply (fast-stage2-net SA)
     Admin->>S2S: terraform apply (fast-stage2-sec SA)
-    S2N-->>S3: stage3_workload_inputs (Host Project, VPC, Subnets)
-    S2S-->>S3: stage3_security_inputs (CMEK Keys, CA Pool)
+    S2N-->>S3: stage3_workload_inputs (Optional: Shared VPC)
+    S2S-->>S3: stage3_security_inputs (Optional: CMEK Keys)
+    Admin->>S3: terraform apply (fast-stage2-pf SA)
+    S3-->>Admin: service_url (Live HTTPS Endpoint)
 ```
 
 ### Prerequisites
@@ -274,9 +284,47 @@ terraform output -json stage3_security_inputs > ../3-workloads-sec.auto.tfvars.j
 
 ---
 
-### Step 5: Consuming Contracts in Downstream Workloads (Stage 3)
+### Step 5: Deploy Stage 3 (Workloads / Cloud Run Application)
 
-When provisioning application workload projects (e.g., GKE clusters, BigQuery data platforms, or VM compute fleets), the downstream Project Factory consumes the exported contracts:
+Navigate to `3-workloads`:
+```bash
+cd ../3-workloads
+cp terraform.tfvars.example terraform.tfvars
+```
+
+Update `terraform.tfvars`:
+```hcl
+folder_id          = "folders/123456789012" # Workloads/Development folder ID from Stage 1
+billing_account_id = "012345-6789AB-CDEF01"
+prefix             = "fast"
+environment        = "dev"
+region             = "europe-west1"
+app_config_file    = "data/hello-world.yaml"
+```
+
+Application parameters (container image, ports, CPU, memory, scaling, and environment variables) can be customized directly in [`3-workloads/data/hello-world.yaml`](./3-workloads/data/hello-world.yaml).
+
+Initialize, plan, and apply:
+```bash
+terraform init
+terraform plan
+terraform apply
+```
+
+**Verify the deployed serverless application**:
+```bash
+# Retrieve the public HTTPS Cloud Run URL
+terraform output -raw service_url
+
+# Test the endpoint
+curl -s $(terraform output -raw service_url)
+```
+
+---
+
+### Step 6: Consuming Shared Platform Contracts in Workloads
+
+When expanding application workloads into complex platforms (e.g., GKE clusters, Private Cloud Run via Serverless VPC Access, or VMs), Stage 3 can consume contracts emitted by Stage 2:
 
 1. **Shared VPC Attachment**: The workload project is associated with the host project via `host_project_id` from `stage3_workload_inputs`.
 2. **Subnet Access**: Application service accounts receive `roles/compute.networkUser` on the designated subnets (`subnet_self_links`).
@@ -348,6 +396,9 @@ fast-test/
 ├── 3-workloads/              # Stage 3: Cloud Run Serverless Application (Hello World)
 │   ├── versions.tf           # Provider constraints & SA impersonation
 │   ├── variables.tf          # Inputs for project, region, image, scaling, and folders
+│   ├── locals.tf             # Decodes YAML data via yamldecode()
+│   ├── data/                 # Declarative application configuration
+│   │   └── hello-world.yaml  # Container image, CPU/RAM, scaling, env vars
 │   ├── project.tf            # Dedicated workload GCP project & API enablement
 │   ├── cloud_run.tf          # Cloud Run v2 service, runtime SA, and invoker IAM
 │   ├── outputs.tf            # Service URL, project ID, and runtime identities
@@ -370,6 +421,7 @@ For teams building landing zones directly within the cloned [Cloud Foundation Fa
 * `modules/gcs`: Hardened storage buckets.
 * `modules/net-vpc` & `modules/net-cloudnat`: VPCs, subnets, and Cloud NAT.
 * `modules/kms` & `modules/secret-manager`: Cryptography and secrets.
+* `modules/cloud-run`: Serverless application services.
 
 ---
 
