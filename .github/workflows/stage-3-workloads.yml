@@ -96,6 +96,13 @@ jobs:
         if: ${{ (github.event_name == 'pull_request' || github.event.inputs.action == 'plan') && steps.auth_check.outputs.is_authenticated == 'true' }}
         run: terraform plan -no-color
 
-      - name: Terraform Apply
-        if: ${{ ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event.inputs.action == 'apply') && steps.auth_check.outputs.is_authenticated == 'true' }}
-        run: terraform apply -auto-approve -no-color
+      # =========================================================================
+      # DISABLED FOR TESTING: Prevent applying changes to GCP
+      # Uncomment the block below when ready for live deployments.
+      # =========================================================================
+      # - name: Terraform Apply
+      #   if: ${{ ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event.inputs.action == 'apply') && steps.auth_check.outputs.is_authenticated == 'true' }}
+      #   run: terraform apply -auto-approve -no-color
+
+      - name: Terraform Apply (Disabled for testing)
+        run: echo "Terraform Apply is disabled for testing. No changes are applied to GCP."
