@@ -114,6 +114,17 @@ flowchart LR
 
 ---
 
+### Stage 3: Workloads ([`3-workloads/`](./3-workloads))
+* **Purpose**: Provisions isolated application workload projects inside the `Workloads` folder and deploys containerized serverless applications on **Cloud Run**.
+* **Execution Identity**: Executed by the **Project Factory / Workloads Service Account** (`fast-stage2-pf`).
+* **Key Resources Created**:
+  * **Workload Application Project** (`fast-dev-app`): Created inside the `Workloads/Development` folder with APIs enabled (`run`, `compute`, `iam`, `logging`, `monitoring`).
+  * **Runtime Service Account** (`fast-dev-hello-run-sa`): Dedicated least-privilege identity for the Cloud Run container.
+  * **Cloud Run v2 Service** (`fast-dev-hello-world`): Serverless container running the Hello World application with scale-to-zero autoscaling (0–5 instances) and public/authenticated HTTPS ingress.
+* **Outputs**: `service_url` (public HTTPS endpoint), `project_id`, `service_account_email`.
+
+---
+
 ## 3. Parameter Pipeline & Contract Specification
 
 FAST eliminates manual configuration between stages by passing declarative contract objects:
@@ -282,7 +293,8 @@ fast-test/
 │       ├── stage-0-bootstrap.yml     # CI/CD: Super-Admin / Seed automation pipeline
 │       ├── stage-1-resman.yml        # CI/CD: Resource Management stage pipeline
 │       ├── stage-2-networking.yml    # CI/CD: Shared VPC & Networking stage pipeline
-│       └── stage-2-security.yml      # CI/CD: Central KMS & Security stage pipeline
+│       ├── stage-2-security.yml      # CI/CD: Central KMS & Security stage pipeline
+│       └── stage-3-workloads.yml     # CI/CD: Workloads & Cloud Run stage pipeline
 ├── 0-bootstrap/              # Stage 0: Automation project, state buckets, stage SAs, IAM, WIF
 │   ├── versions.tf           # Terraform version constraints and providers
 │   ├── variables.tf          # Org ID, billing ID, storage location, admin groups, WIF
@@ -291,6 +303,7 @@ fast-test/
 │   ├── iam.tf                # Stage service accounts, org & billing IAM, impersonation
 │   ├── wif.tf                # Workload Identity Pool & GitHub OIDC Provider for keyless CI/CD
 │   ├── outputs.tf            # Exports stage1_resman_inputs contract & WIF provider name
+│   ├── terraform.tfvars
 │   ├── terraform.tfvars.example
 │   ├── fabric_module_example.tf.example
 │   └── README.md             # Stage 0 specific architectural documentation
@@ -302,6 +315,7 @@ fast-test/
 │   ├── org_policies.tf       # Security guardrails (disable SA keys, require OS Login)
 │   ├── tags.tf               # Hierarchical Resource Manager tags (context, environment)
 │   ├── outputs.tf            # Exports stage2_networking_inputs & stage2_security_inputs
+│   ├── terraform.tfvars
 │   ├── terraform.tfvars.example
 │   ├── fabric_module_example.tf.example
 │   └── README.md             # Stage 1 specific architectural documentation
@@ -315,6 +329,7 @@ fast-test/
 │   ├── firewall.tf           # Baseline firewall rules (RFC1918, health checks, IAP)
 │   ├── dns.tf                # Private Cloud DNS managed zone (gcp.internal.)
 │   ├── outputs.tf            # Exports stage3_workload_inputs contract
+│   ├── terraform.tfvars
 │   ├── terraform.tfvars.example
 │   ├── fabric_module_example.tf.example
 │   └── README.md             # Stage 2 Networking specific architectural documentation
@@ -326,9 +341,19 @@ fast-test/
 │   ├── secret_manager.tf     # Centralized Secret Manager secrets with replication
 │   ├── ca_service.tf         # Private CA Pool (DEVOPS tier) for internal TLS
 │   ├── outputs.tf            # Exports stage3_security_inputs contract
+│   ├── terraform.tfvars
 │   ├── terraform.tfvars.example
 │   ├── fabric_module_example.tf.example
 │   └── README.md             # Stage 2 Security specific architectural documentation
+├── 3-workloads/              # Stage 3: Cloud Run Serverless Application (Hello World)
+│   ├── versions.tf           # Provider constraints & SA impersonation
+│   ├── variables.tf          # Inputs for project, region, image, scaling, and folders
+│   ├── project.tf            # Dedicated workload GCP project & API enablement
+│   ├── cloud_run.tf          # Cloud Run v2 service, runtime SA, and invoker IAM
+│   ├── outputs.tf            # Service URL, project ID, and runtime identities
+│   ├── terraform.tfvars      # GitOps configuration
+│   ├── terraform.tfvars.example
+│   └── README.md             # Stage 3 specific documentation & Docker image notes
 ├── resources/                # Architectural diagrams and reference materials
 └── README.md                 # Master landing zone documentation (this file)
 ```
@@ -358,6 +383,8 @@ Jokaiselle Stagelle on määritelty oma itsenäinen ja selkeä GitHub Actions CI
 | **Stage 1** (Resource Management) | [`.github/workflows/stage-1-resman.yml`](./.github/workflows/stage-1-resman.yml) | `fast-stage1-resman` (`GCP_STAGE1_SA` tai `GCP_SERVICE_ACCOUNT`) | PR / Push (`1-resman/**`), `workflow_dispatch` |
 | **Stage 2** (Networking) | [`.github/workflows/stage-2-networking.yml`](./.github/workflows/stage-2-networking.yml) | `fast-stage2-net` (`GCP_STAGE2_NET_SA` tai `GCP_SERVICE_ACCOUNT`) | PR / Push (`2-networking/**`), `workflow_dispatch` |
 | **Stage 2** (Security) | [`.github/workflows/stage-2-security.yml`](./.github/workflows/stage-2-security.yml) | `fast-stage2-sec` (`GCP_STAGE2_SEC_SA` tai `GCP_SERVICE_ACCOUNT`) | PR / Push (`2-security/**`), `workflow_dispatch` |
+| **Stage 3** (Workloads) | [`.github/workflows/stage-3-workloads.yml`](./.github/workflows/stage-3-workloads.yml) | `fast-stage2-pf` (`GCP_STAGE3_SA` tai `GCP_SERVICE_ACCOUNT`) | PR / Push (`3-workloads/**`), `workflow_dispatch` |
+
 
 ### Pipeline-vaiheet:
 1. **Lint & Format**: `terraform fmt -check -diff` varmistaa koodin tyyliohjeiden noudattamisen.
@@ -403,6 +430,7 @@ Mene GitHub-repositoriossa: **Settings -> Secrets and variables -> Actions -> Ne
 | `GCP_STAGE1_SA` | Stage 1 (Resource Management) palvelutilin sähköposti | `fast-stage1-resman@fast-prod-iac-0.iam.gserviceaccount.com` |
 | `GCP_STAGE2_NET_SA` | Stage 2 (Networking) palvelutilin sähköposti | `fast-stage2-net@fast-prod-iac-0.iam.gserviceaccount.com` |
 | `GCP_STAGE2_SEC_SA` | Stage 2 (Security) palvelutilin sähköposti | `fast-stage2-sec@fast-prod-iac-0.iam.gserviceaccount.com` |
+| `GCP_STAGE3_SA` | Stage 3 (Workloads) palvelutilin sähköposti | `fast-stage2-pf@fast-prod-iac-0.iam.gserviceaccount.com` |
 | `GCP_STAGE0_SA` *(valinnainen)* | Stage 0 (Bootstrap) seed CI -palvelutili | `fast-prod-iac-0@...` |
 
 *(Voit halutessasi asettaa myös yleisen `GCP_SERVICE_ACCOUNT` -salaisuuden, jota pipelinet käyttävät oletuksena, mikäli stage-kohtaista salaisuutta ei ole erikseen määritelty).*
@@ -416,17 +444,19 @@ Jos haluat testata pipelineja ennen WIF-infrastruktuurin provisiointia:
 
 ### GitOps-parametrien hallinta CI/CD:ssä (`terraform.tfvars`)
 
-Alemmat vaiheet (`1-resman`, `2-networking`, `2-security`) tarvitsevat aiempien vaiheiden tietoja (kuten `organization_id`, kansio-ID:t ja palvelutilien osoitteet). Repositoriossa käytetään **GitOps-pohjaista parametrien hallintaa**:
+Alemmat vaiheet (`1-resman`, `2-networking`, `2-security`, `3-workloads`) tarvitsevat aiempien vaiheiden tietoja (kuten `organization_id`, kansio-ID:t ja palvelutilien osoitteet). Repositoriossa käytetään **GitOps-pohjaista parametrien hallintaa**:
 
 1. Jokaisessa stage-kansiossa on oma versionhallittu `terraform.tfvars`-tiedosto:
    - [`0-bootstrap/terraform.tfvars`](./0-bootstrap/terraform.tfvars)
    - [`1-resman/terraform.tfvars`](./1-resman/terraform.tfvars)
    - [`2-networking/terraform.tfvars`](./2-networking/terraform.tfvars)
    - [`2-security/terraform.tfvars`](./2-security/terraform.tfvars)
+   - [`3-workloads/terraform.tfvars`](./3-workloads/terraform.tfvars)
 2. [`.gitignore`](./.gitignore) sallii nämä stage-kohtaiset konfiguraatiot (`!*/terraform.tfvars`), samalla estäen arkaluontoiset tiedostot (`*.secret.tfvars`).
-3. Kun infrastruktuuriin tehdään muutoksia (esim. uusi aliverkko, uusi KMS-alue tai muuttuja-arvo), kehittäjä tekee muutoksen koodiin tai kyseiseen `terraform.tfvars`-tiedostoon ja avaa Pull Requestin:
+3. Kun infrastruktuuriin tehdään muutoksia (esim. uusi aliverkko, uusi KMS-alue, Cloud Run -konfiguraatio tai muuttuja-arvo), kehittäjä tekee muutoksen koodiin tai kyseiseen `terraform.tfvars`-tiedostoon ja avaa Pull Requestin:
    - CI/CD suorittaa automaattisesti `terraform plan`:in kyseiselle Stagelle suoraan versionhallitulla `terraform.tfvars`-konfiguraatiolla.
    - PR:n hyväksymisen ja mergeämisen jälkeen pipeline ajaa automaattisesti `terraform apply -auto-approve`:n pilveen.
+
 
 
 
