@@ -9,7 +9,7 @@
 # -----------------------------------------------------------------------------
 
 resource "google_compute_region_network_endpoint_group" "serverless_neg" {
-  name                  = "${var.prefix}-${local.environment}-hello-neg"
+  name                  = local.serverless_neg_name
   project               = google_project.workload.project_id
   region                = local.region
   network_endpoint_type = "SERVERLESS"
@@ -29,7 +29,7 @@ resource "google_compute_region_network_endpoint_group" "serverless_neg" {
 # -----------------------------------------------------------------------------
 
 resource "google_compute_backend_service" "default" {
-  name                  = "${var.prefix}-${local.environment}-hello-backend"
+  name                  = local.backend_name
   project               = google_project.workload.project_id
   protocol              = "HTTP"
   port_name             = "http"
@@ -56,7 +56,7 @@ resource "google_compute_backend_service" "default" {
 # -----------------------------------------------------------------------------
 
 resource "google_compute_url_map" "default" {
-  name            = "${var.prefix}-${local.environment}-hello-url-map"
+  name            = local.url_map_name
   project         = google_project.workload.project_id
   default_service = google_compute_backend_service.default.id
 
@@ -68,7 +68,7 @@ resource "google_compute_url_map" "default" {
 # -----------------------------------------------------------------------------
 
 resource "google_compute_global_address" "default" {
-  name        = "${var.prefix}-${local.environment}-hello-lb-ip"
+  name        = local.lb_ip_name
   project     = google_project.workload.project_id
   description = "Global static IP address for Cloud Run external load balancer"
 
@@ -80,7 +80,7 @@ resource "google_compute_global_address" "default" {
 # -----------------------------------------------------------------------------
 
 resource "google_compute_target_http_proxy" "default" {
-  name    = "${var.prefix}-${local.environment}-hello-http-proxy"
+  name    = local.http_proxy_name
   project = google_project.workload.project_id
   url_map = google_compute_url_map.default.id
 
@@ -88,7 +88,7 @@ resource "google_compute_target_http_proxy" "default" {
 }
 
 resource "google_compute_global_forwarding_rule" "http" {
-  name                  = "${var.prefix}-${local.environment}-hello-http-rule"
+  name                  = local.http_rule_name
   project               = google_project.workload.project_id
   target                = google_compute_target_http_proxy.default.id
   port_range            = "80"
@@ -106,7 +106,7 @@ resource "google_compute_global_forwarding_rule" "http" {
 
 resource "google_compute_managed_ssl_certificate" "default" {
   count   = var.domain != null ? 1 : 0
-  name    = "${var.prefix}-${local.environment}-hello-cert"
+  name    = local.ssl_cert_name
   project = google_project.workload.project_id
 
   managed {
@@ -118,7 +118,7 @@ resource "google_compute_managed_ssl_certificate" "default" {
 
 resource "google_compute_target_https_proxy" "default" {
   count   = var.domain != null ? 1 : 0
-  name    = "${var.prefix}-${local.environment}-hello-https-proxy"
+  name    = local.https_proxy_name
   project = google_project.workload.project_id
   url_map = google_compute_url_map.default.id
 
@@ -129,7 +129,7 @@ resource "google_compute_target_https_proxy" "default" {
 
 resource "google_compute_global_forwarding_rule" "https" {
   count                 = var.domain != null ? 1 : 0
-  name                  = "${var.prefix}-${local.environment}-hello-https-rule"
+  name                  = local.https_rule_name
   project               = google_project.workload.project_id
   target                = google_compute_target_https_proxy.default[0].id
   port_range            = "443"

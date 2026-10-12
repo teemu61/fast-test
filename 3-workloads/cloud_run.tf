@@ -10,9 +10,9 @@
 
 resource "google_service_account" "cloud_run_sa" {
   project      = google_project.workload.project_id
-  account_id   = "${var.prefix}-${local.environment}-hello-run-sa"
-  display_name = "Cloud Run Hello World Runtime SA"
-  description  = "Dedicated runtime service account for the hello-world Cloud Run service"
+  account_id   = local.cloud_run_sa_id
+  display_name = "Cloud Run ${local.app_name} Runtime SA"
+  description  = "Dedicated runtime service account for the ${local.app_name} Cloud Run service"
 
   depends_on = [google_project_service.services]
 }
@@ -22,7 +22,7 @@ resource "google_service_account" "cloud_run_sa" {
 # -----------------------------------------------------------------------------
 
 resource "google_cloud_run_v2_service" "hello_world" {
-  name     = "${var.prefix}-${local.environment}-${local.app_name}"
+  name     = local.cloud_run_service_name
   location = local.region
   project  = google_project.workload.project_id
 

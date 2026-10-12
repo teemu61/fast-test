@@ -6,7 +6,7 @@
 resource "google_secret_manager_secret" "secrets" {
   for_each = var.enable_secret_manager ? var.secrets : {}
 
-  secret_id = each.key
+  secret_id = startswith(each.key, "${var.prefix}-${var.environment}-") ? each.key : "${var.prefix}-${var.environment}-${each.key}"
   project   = google_project.security_project.project_id
 
   replication {
