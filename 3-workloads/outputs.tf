@@ -32,3 +32,29 @@ output "service_account_email" {
   description = "Email of the dedicated Cloud Run runtime service account."
   value       = google_service_account.cloud_run_sa.email
 }
+
+output "load_balancer_ip" {
+  description = "Public static IPv4 address of the external HTTP(S) load balancer."
+  value       = google_compute_global_address.default.address
+}
+
+output "load_balancer_url" {
+  description = "Entrypoint URL via the external load balancer protected by Cloud Armor."
+  value       = var.domain != null ? "https://${var.domain}" : "http://${google_compute_global_address.default.address}"
+}
+
+output "cloud_armor_policy_name" {
+  description = "Name of the Google Cloud Armor security policy."
+  value       = google_compute_security_policy.cloud_armor.name
+}
+
+output "cloud_armor_policy_id" {
+  description = "Resource ID of the Google Cloud Armor security policy."
+  value       = google_compute_security_policy.cloud_armor.id
+}
+
+output "serverless_neg_name" {
+  description = "Name of the Serverless Network Endpoint Group connecting Cloud Run."
+  value       = google_compute_region_network_endpoint_group.serverless_neg.name
+}
+

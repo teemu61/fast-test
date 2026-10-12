@@ -26,7 +26,7 @@ resource "google_cloud_run_v2_service" "hello_world" {
   location = local.region
   project  = google_project.workload.project_id
 
-  ingress = "INGRESS_TRAFFIC_ALL"
+  ingress = local.ingress
 
   template {
     service_account = google_service_account.cloud_run_sa.email

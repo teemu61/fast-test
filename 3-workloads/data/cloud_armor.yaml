@@ -1,0 +1,38 @@
+# =============================================================================
+# Google FAST Stage 3: Cloud Armor Security Policy & Rate Limiting (YAML)
+# Defines Cloud Armor WAF rules, OWASP Preconfigured Expressions, and Rate Limiting.
+# =============================================================================
+
+security_policy:
+  name: "fast-dev-hello-armor"
+  description: "Stage 3 Cloud Run Cloud Armor WAF ja Rate Limiting -tietoturvakäytäntö"
+  rules:
+    # 1. Rate Limiting (max 100 pyyntöä / 60s per IP, ylityksestä 5 min banni)
+    - priority: 500
+      action: "rate_based_ban"
+      preview: false
+      description: "Pyyntömäärärajoitus samasta IP-osoitteesta"
+      src_ip_ranges:
+        - "*"
+      rate_limit_options:
+        rate_limit_threshold_count: 100
+        rate_limit_threshold_interval_sec: 60
+        conform_action: "allow"
+        exceed_action: "deny(429)"
+        enforce_on_key: "IP"
+        ban_duration_sec: 300
+
+    # 2. OWASP SQL Injection -suojaus
+    - priority: 2000
+      action: "deny(403)"
+      preview: false
+      expression: "evaluatePreconfiguredExpr('sqli-v33-stable')"
+      description: "Estetään SQL-injektiohyökkäykset"
+
+    # 3. Oletussääntö
+    - priority: 2147483647
+      action: "allow"
+      preview: false
+      src_ip_ranges:
+        - "*"
+      description: "Sallitaan muu normaali liikenne"

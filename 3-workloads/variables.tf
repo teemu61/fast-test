@@ -117,12 +117,25 @@ variable "memory" {
 }
 
 # -----------------------------------------------------------------------------
-# Declarative YAML Configuration File
+# Declarative YAML Configuration Files
 # -----------------------------------------------------------------------------
 
 variable "app_config_file" {
   description = "Path to the declarative application YAML configuration file relative to the module root."
   type        = string
   default     = "data/hello-world.yaml"
+}
+
+variable "cloud_armor_config_file" {
+  description = "Path to the declarative Cloud Armor security policy YAML configuration file relative to the module root."
+  type        = string
+  default     = "data/cloud_armor.yaml"
+}
+
+
+variable "domain" {
+  description = "Optional custom domain name for Google-managed SSL certificate on HTTPS load balancer (e.g. 'hello.example.com'). If null, HTTP load balancing is provisioned."
+  type        = string
+  default     = null
 }
 

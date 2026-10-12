@@ -27,8 +27,11 @@ scaling:
   max_instances: 5
 
 # Network ingress & access policy
+# INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER enforces that all traffic must route
+# through the external HTTP(S) Load Balancer and Cloud Armor WAF security policy.
 access:
   allow_unauthenticated: true
+  ingress: INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER
 
 # Environment variables injected into the container
 env:
