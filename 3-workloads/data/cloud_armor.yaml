@@ -4,7 +4,7 @@
 # =============================================================================
 
 security_policy:
-  name: "fast-dev-hello-armor"
+  # Oletusnimi muodostetaan dynaamisesti FAST-nimeämiskaavalla: ${var.prefix}-${var.environment}-armor
   description: "Stage 3 Cloud Run Cloud Armor WAF ja Rate Limiting -tietoturvakäytäntö"
   rules:
     # 1. Rate Limiting (max 100 pyyntöä / 60s per IP, ylityksestä 5 min banni)

@@ -7,12 +7,12 @@
 resource "google_compute_subnetwork" "subnets" {
   for_each = { for s in var.subnets : s.name => s }
 
-  name                     = each.value.name
+  name                     = startswith(each.value.name, "${var.prefix}-${var.environment}-") ? each.value.name : "${var.prefix}-${var.environment}-${each.value.name}"
   project                  = google_project.host_project.project_id
   region                   = each.value.region
   network                  = google_compute_network.shared_vpc.id
   ip_cidr_range            = each.value.ip_cidr_range
-  description              = coalesce(each.value.description, "Subnet ${each.value.name} in ${each.value.region}")
+  description              = coalesce(each.value.description, "Subnet in ${each.value.region}")
   private_ip_google_access = true
 
   dynamic "secondary_ip_range" {

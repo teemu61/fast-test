@@ -33,9 +33,31 @@ locals {
   # Dynamic environment variables from YAML
   env_vars = try(local.app_yaml.env, {})
 
-  # Cloud Armor security policy
-  security_policy_name        = try(local.armor_yaml.security_policy.name, "${var.prefix}-${local.environment}-hello-armor")
+  # ---------------------------------------------------------------------------
+  # FAST Naming Standard: ${var.prefix}-${local.environment}-<palvelun_nimi>
+  # ---------------------------------------------------------------------------
+
+  # Cloud Run & Service Account
+  cloud_run_service_name = "${var.prefix}-${local.environment}-${local.app_name}"
+  cloud_run_sa_id        = substr("${var.prefix}-${local.environment}-${local.app_name}-sa", 0, 30)
+
+  # Cloud Armor security policy (try YAML input first, fallback to FAST standard)
+  security_policy_name = try(
+    local.armor_yaml.security_policy.name,
+    null
+  ) != null ? local.armor_yaml.security_policy.name : "${var.prefix}-${local.environment}-armor"
   security_policy_description = try(local.armor_yaml.security_policy.description, "Stage 3 Cloud Run Cloud Armor WAF ja Rate Limiting -tietoturvakäytäntö")
   security_policy_rules       = try(local.armor_yaml.security_policy.rules, [])
+
+  # Load Balancer resources
+  serverless_neg_name = "${var.prefix}-${local.environment}-${local.app_name}-neg"
+  backend_name        = "${var.prefix}-${local.environment}-${local.app_name}-backend"
+  url_map_name        = "${var.prefix}-${local.environment}-${local.app_name}-url-map"
+  lb_ip_name          = "${var.prefix}-${local.environment}-${local.app_name}-lb-ip"
+  http_proxy_name     = "${var.prefix}-${local.environment}-${local.app_name}-http-proxy"
+  http_rule_name      = "${var.prefix}-${local.environment}-${local.app_name}-http-rule"
+  ssl_cert_name       = "${var.prefix}-${local.environment}-${local.app_name}-cert"
+  https_proxy_name    = "${var.prefix}-${local.environment}-${local.app_name}-https-proxy"
+  https_rule_name     = "${var.prefix}-${local.environment}-${local.app_name}-https-rule"
 }
 
