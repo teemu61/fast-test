@@ -1,0 +1,49 @@
+# -----------------------------------------------------------------------------
+# Google FAST GitOps Environment Values: DEV
+# -----------------------------------------------------------------------------
+
+global:
+  environment: "dev"
+  prefix: "fast"
+  projectId: "fast-dev-app"
+
+replicaCount: 2
+
+image:
+  repository: us-docker.pkg.dev/cloudrun/container/hello
+  pullPolicy: IfNotPresent
+  tag: latest
+
+resources:
+  limits:
+    cpu: 250m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+backendConfig:
+  name: "fast-dev-backend-config"
+  securityPolicyName: "fast-dev-armor"
+
+secretStore:
+  name: "fast-dev-secret-store"
+
+externalSecrets:
+  serviceAccountName: "external-secrets"
+  namespace: "external-secrets"
+
+externalSecret:
+  name: "fast-dev-db-credentials"
+  targetSecretName: "fast-dev-db-secret"
+  secretKey: "db-password"
+  remoteKey: "fast-dev-db-password"
+  refreshInterval: "30m"
+
+ingress:
+  enabled: true
+  staticIpName: "fast-dev-gke-lb-ip"
+  domain: ""
+  managedCertificate:
+    enabled: false
+    name: "fast-dev-cert"

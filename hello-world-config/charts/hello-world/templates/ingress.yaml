@@ -1,0 +1,29 @@
+{{- if .Values.ingress.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "hello-world.fullname" . }}-ingress
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "hello-world.labels" . | nindent 4 }}
+  annotations:
+    kubernetes.io/ingress.class: "gce"
+    kubernetes.io/ingress.global-static-ip-name: {{ .Values.ingress.staticIpName | quote }}
+    {{- if .Values.ingress.managedCertificate.enabled }}
+    networking.gke.io/managed-certificates: {{ .Values.ingress.managedCertificate.name | quote }}
+    {{- end }}
+spec:
+  rules:
+    - {{- if .Values.ingress.domain }}
+      host: {{ .Values.ingress.domain | quote }}
+      {{- end }}
+      http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: {{ include "hello-world.fullname" . }}
+                port:
+                  number: {{ .Values.service.port }}
+{{- end }}

@@ -61,16 +61,26 @@ locals {
   https_rule_name     = "${var.prefix}-${local.environment}-${local.app_name}-https-rule"
 
   # ---------------------------------------------------------------------------
-  # GKE FAST Naming Standards
+  # Stage 2 Shared VPC Resolution
   # ---------------------------------------------------------------------------
-  gke_zone                = var.gke_zone != null ? var.gke_zone : "${local.region}-b"
-  gke_cluster_name        = "${var.prefix}-${local.environment}-gke"
-  gke_nodepool_name       = "${var.prefix}-${local.environment}-gke-pool"
+  shared_vpc_host_project_id = var.shared_vpc_host_project_id != null ? var.shared_vpc_host_project_id : "${var.prefix}-${local.environment}-net-host"
+  shared_vpc_network         = var.shared_vpc_network != null ? var.shared_vpc_network : "projects/${local.shared_vpc_host_project_id}/global/networks/${var.prefix}-${local.environment}-shared-vpc"
+  shared_vpc_subnetwork      = var.shared_vpc_subnetwork != null ? var.shared_vpc_subnetwork : "projects/${local.shared_vpc_host_project_id}/regions/${local.region}/subnetworks/${var.prefix}-${local.environment}-${var.shared_vpc_subnet_name}"
+
+  # ---------------------------------------------------------------------------
+  # GKE Autopilot & FAST Naming Standards
+  # ---------------------------------------------------------------------------
+  gke_cluster_name        = "${var.prefix}-${local.environment}-gke-cluster"
   gke_node_sa_id          = substr("${var.prefix}-${local.environment}-gke-node-sa", 0, 30)
-  gke_network_name        = "${var.prefix}-${local.environment}-vpc"
-  gke_subnet_name         = "${var.prefix}-${local.environment}-gke-subnet"
   gke_ingress_ip_name     = "${var.prefix}-${local.environment}-gke-lb-ip"
-  gke_ingress_name        = "${var.prefix}-${local.environment}-hello-ingress"
+  gke_ingress_name        = "${var.prefix}-${local.environment}-${local.app_name}-ingress"
   gke_backend_config_name = "${var.prefix}-${local.environment}-backend-config"
+
+  # ---------------------------------------------------------------------------
+  # External Secrets Operator (ESO) & Secret Manager
+  # ---------------------------------------------------------------------------
+  eso_sa_id       = substr("${var.prefix}-${local.environment}-eso-sa", 0, 30)
+  db_secret_id    = "${var.prefix}-${local.environment}-db-password"
+  argocd_app_name = "${var.prefix}-${local.environment}-${local.app_name}"
 }
 
