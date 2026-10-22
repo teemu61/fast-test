@@ -14,6 +14,10 @@ terraform {
       source  = "hashicorp/random"
       version = ">= 3.5.0, < 4.0.0"
     }
+    local = {
+      source  = "hashicorp/local"
+      version = ">= 2.4.0, < 3.0.0"
+    }
   }
 
   # In production FAST deployments, state is kept in the GCS bucket created in Stage 0:

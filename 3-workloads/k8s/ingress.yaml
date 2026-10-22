@@ -1,0 +1,20 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: fast-dev-hello-ingress
+  annotations:
+    # Use Google Cloud Ingress Controller (GLBC)
+    kubernetes.io/ingress.class: "gce"
+    # Attach static public IP provisioned by Terraform
+    kubernetes.io/ingress.global-static-ip-name: "fast-dev-gke-lb-ip"
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /*
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: hello-world
+            port:
+              number: 8080

@@ -58,3 +58,43 @@ output "serverless_neg_name" {
   value       = google_compute_region_network_endpoint_group.serverless_neg.name
 }
 
+# -----------------------------------------------------------------------------
+# Kubernetes (GKE) Workload Outputs
+# -----------------------------------------------------------------------------
+
+output "gke_cluster_name" {
+  description = "Name of the provisioned minimalist GKE cluster."
+  value       = var.enable_gke ? google_container_cluster.primary[0].name : null
+}
+
+output "gke_cluster_location" {
+  description = "GCP zone where the minimalist GKE cluster is deployed."
+  value       = var.enable_gke ? google_container_cluster.primary[0].location : null
+}
+
+output "gke_cluster_endpoint" {
+  description = "Kubernetes API server IP endpoint."
+  value       = var.enable_gke ? google_container_cluster.primary[0].endpoint : null
+}
+
+output "gke_node_service_account" {
+  description = "Email of the dedicated GKE worker node service account."
+  value       = var.enable_gke ? google_service_account.gke_node_sa[0].email : null
+}
+
+output "gke_get_credentials_command" {
+  description = "Convenience gcloud command to authenticate kubectl to the GKE cluster."
+  value       = var.enable_gke ? "gcloud container clusters get-credentials ${google_container_cluster.primary[0].name} --zone ${google_container_cluster.primary[0].location} --project ${google_project.workload.project_id}" : null
+}
+
+output "gke_ingress_ip" {
+  description = "Reserved static external IPv4 address for the GKE Ingress load balancer."
+  value       = var.enable_gke ? google_compute_global_address.gke_ingress_ip[0].address : null
+}
+
+output "gke_ingress_url" {
+  description = "Public URL to access the Hello World application on GKE via the External Load Balancer and Ingress."
+  value       = var.enable_gke ? "http://${google_compute_global_address.gke_ingress_ip[0].address}" : null
+}
+
+
