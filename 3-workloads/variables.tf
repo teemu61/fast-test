@@ -60,6 +60,7 @@ variable "project_services" {
     "iam.googleapis.com",
     "compute.googleapis.com",
     "container.googleapis.com",
+    "secretmanager.googleapis.com",
     "logging.googleapis.com",
     "monitoring.googleapis.com"
   ]
@@ -215,4 +216,85 @@ variable "gke_app_replicas" {
   type        = number
   default     = 2
 }
+
+# -----------------------------------------------------------------------------
+# Stage 2 Shared VPC & GKE Autopilot Network Configuration
+# -----------------------------------------------------------------------------
+
+variable "shared_vpc_host_project_id" {
+  description = "Project ID of the Shared VPC host project from Stage 2. If null, defaults to '<prefix>-<environment>-net-host'."
+  type        = string
+  default     = null
+}
+
+variable "shared_vpc_network" {
+  description = "Resource ID or self_link of the Shared VPC network from Stage 2. If null, defaults to '<prefix>-<environment>-shared-vpc' in the host project."
+  type        = string
+  default     = null
+}
+
+variable "shared_vpc_subnetwork" {
+  description = "Resource ID or self_link of the Shared VPC subnetwork from Stage 2. If null, computed from host project, region, and shared_vpc_subnet_name."
+  type        = string
+  default     = null
+}
+
+variable "shared_vpc_subnet_name" {
+  description = "Base name of the subnet created in Stage 2 (e.g. 'europe-west1-core')."
+  type        = string
+  default     = "europe-west1-core"
+}
+
+variable "pods_secondary_range_name" {
+  description = "Name of the secondary IP range for Kubernetes Pods defined in the Stage 2 subnet."
+  type        = string
+  default     = "pods"
+}
+
+variable "services_secondary_range_name" {
+  description = "Name of the secondary IP range for Kubernetes Services defined in the Stage 2 subnet."
+  type        = string
+  default     = "services"
+}
+
+variable "master_ipv4_cidr_block" {
+  description = "The /28 CIDR block for the GKE control plane private endpoint."
+  type        = string
+  default     = "172.16.0.0/28"
+}
+
+# -----------------------------------------------------------------------------
+# GitOps & ArgoCD Configuration
+# -----------------------------------------------------------------------------
+
+variable "gitops_repo_url" {
+  description = "Git repository URL containing the hello-world-config GitOps Helm charts."
+  type        = string
+  default     = "https://github.com/my-org/hello-world-config.git"
+}
+
+variable "gitops_repo_revision" {
+  description = "Git target revision (branch, tag, or commit SHA) for the ArgoCD Application."
+  type        = string
+  default     = "HEAD"
+}
+
+variable "gitops_repo_path" {
+  description = "Path within the GitOps repository pointing to the Helm chart."
+  type        = string
+  default     = "charts/hello-world"
+}
+
+variable "argocd_helm_version" {
+  description = "Version of the ArgoCD Helm chart to install."
+  type        = string
+  default     = "7.7.7"
+}
+
+variable "eso_helm_version" {
+  description = "Version of the External Secrets Operator Helm chart to install."
+  type        = string
+  default     = "0.10.4"
+}
+
 

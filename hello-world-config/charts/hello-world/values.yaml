@@ -1,0 +1,56 @@
+# Default values for hello-world Helm chart.
+# These values are overridden by values-dev.yaml and values-prod.yaml in GitOps deployments.
+
+global:
+  projectId: ""
+  environment: "dev"
+  prefix: "fast"
+
+replicaCount: 2
+
+image:
+  repository: us-docker.pkg.dev/cloudrun/container/hello
+  pullPolicy: IfNotPresent
+  tag: latest
+
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  type: NodePort
+  port: 80
+  targetPort: 8080
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+backendConfig:
+  name: "hello-world-backend-config"
+  securityPolicyName: "fast-dev-armor"
+
+secretStore:
+  name: "gcp-secret-store"
+
+externalSecrets:
+  serviceAccountName: "external-secrets"
+  namespace: "external-secrets"
+
+externalSecret:
+  name: "db-credentials"
+  targetSecretName: "app-db-secret"
+  secretKey: "db-password"
+  remoteKey: "fast-dev-db-password"
+  refreshInterval: "1h"
+
+ingress:
+  enabled: true
+  staticIpName: "fast-dev-gke-lb-ip"
+  domain: ""
+  managedCertificate:
+    enabled: false
+    name: "fast-dev-cert"

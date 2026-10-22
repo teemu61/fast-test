@@ -1,0 +1,49 @@
+# -----------------------------------------------------------------------------
+# Google FAST GitOps Environment Values: PROD
+# -----------------------------------------------------------------------------
+
+global:
+  environment: "prod"
+  prefix: "fast"
+  projectId: "fast-prod-app"
+
+replicaCount: 5
+
+image:
+  repository: us-docker.pkg.dev/cloudrun/container/hello
+  pullPolicy: IfNotPresent
+  tag: 1.0.0
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 250m
+    memory: 512Mi
+
+backendConfig:
+  name: "fast-prod-backend-config"
+  securityPolicyName: "fast-prod-armor"
+
+secretStore:
+  name: "fast-prod-secret-store"
+
+externalSecrets:
+  serviceAccountName: "external-secrets"
+  namespace: "external-secrets"
+
+externalSecret:
+  name: "fast-prod-db-credentials"
+  targetSecretName: "fast-prod-db-secret"
+  secretKey: "db-password"
+  remoteKey: "fast-prod-db-password"
+  refreshInterval: "1h"
+
+ingress:
+  enabled: true
+  staticIpName: "fast-prod-gke-lb-ip"
+  domain: "hello.prod.example.com"
+  managedCertificate:
+    enabled: true
+    name: "fast-prod-cert"

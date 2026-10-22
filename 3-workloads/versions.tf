@@ -18,6 +18,14 @@ terraform {
       source  = "hashicorp/local"
       version = ">= 2.4.0, < 3.0.0"
     }
+    helm = {
+      source  = "hashicorp/helm"
+      version = ">= 2.12.0"
+    }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = ">= 2.26.0"
+    }
   }
 
   # In production FAST deployments, state is kept in the GCS bucket created in Stage 0:
