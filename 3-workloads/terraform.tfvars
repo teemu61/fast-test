@@ -13,3 +13,9 @@ prefix = "fast"
 # All application-specific settings (container image, scaling, cpu/memory, env)
 # are defined in data/hello-world.yaml.
 app_config_file = "data/hello-world.yaml"
+
+# Kubernetes (GKE) workload options (minimalist single-zone cluster)
+enable_gke       = true
+gke_node_count   = 1
+gke_machine_type = "e2-medium"
+

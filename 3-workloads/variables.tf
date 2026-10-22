@@ -59,6 +59,7 @@ variable "project_services" {
     "run.googleapis.com",
     "iam.googleapis.com",
     "compute.googleapis.com",
+    "container.googleapis.com",
     "logging.googleapis.com",
     "monitoring.googleapis.com"
   ]
@@ -137,5 +138,81 @@ variable "domain" {
   description = "Optional custom domain name for Google-managed SSL certificate on HTTPS load balancer (e.g. 'hello.example.com'). If null, HTTP load balancing is provisioned."
   type        = string
   default     = null
+}
+
+# -----------------------------------------------------------------------------
+# Kubernetes (GKE) Workload Configuration
+# -----------------------------------------------------------------------------
+
+variable "enable_gke" {
+  description = "Whether to provision the minimalist GKE cluster and Kubernetes Hello World workload."
+  type        = bool
+  default     = true
+}
+
+variable "gke_zone" {
+  description = "GCP compute zone for the minimalist single-zone GKE cluster (e.g. 'europe-west1-b'). If null, defaults to '<region>-b'."
+  type        = string
+  default     = null
+}
+
+variable "gke_node_count" {
+  description = "Number of worker nodes in the minimalist GKE node pool."
+  type        = number
+  default     = 1
+}
+
+variable "gke_machine_type" {
+  description = "Machine type for the GKE worker nodes."
+  type        = string
+  default     = "e2-medium"
+}
+
+variable "gke_disk_size_gb" {
+  description = "Boot disk size in GB for the GKE worker nodes."
+  type        = number
+  default     = 30
+}
+
+variable "gke_network" {
+  description = "VPC network ID or self-link for GKE. If null, a dedicated FAST workload VPC is created."
+  type        = string
+  default     = null
+}
+
+variable "gke_subnetwork" {
+  description = "Subnetwork ID or self-link for GKE. If null, a dedicated FAST workload subnetwork is created."
+  type        = string
+  default     = null
+}
+
+variable "gke_nodes_cidr" {
+  description = "CIDR block for the dedicated GKE nodes subnet."
+  type        = string
+  default     = "10.10.0.0/24"
+}
+
+variable "gke_pods_cidr" {
+  description = "Secondary CIDR block for GKE Pods."
+  type        = string
+  default     = "10.100.0.0/16"
+}
+
+variable "gke_services_cidr" {
+  description = "Secondary CIDR block for GKE Services."
+  type        = string
+  default     = "10.101.0.0/20"
+}
+
+variable "gke_app_image" {
+  description = "Container image for the Kubernetes hello-world application."
+  type        = string
+  default     = "us-docker.pkg.dev/cloudrun/container/hello"
+}
+
+variable "gke_app_replicas" {
+  description = "Number of replicas for the Kubernetes hello-world deployment."
+  type        = number
+  default     = 2
 }
 

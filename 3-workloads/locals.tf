@@ -59,5 +59,18 @@ locals {
   ssl_cert_name       = "${var.prefix}-${local.environment}-${local.app_name}-cert"
   https_proxy_name    = "${var.prefix}-${local.environment}-${local.app_name}-https-proxy"
   https_rule_name     = "${var.prefix}-${local.environment}-${local.app_name}-https-rule"
+
+  # ---------------------------------------------------------------------------
+  # GKE FAST Naming Standards
+  # ---------------------------------------------------------------------------
+  gke_zone                = var.gke_zone != null ? var.gke_zone : "${local.region}-b"
+  gke_cluster_name        = "${var.prefix}-${local.environment}-gke"
+  gke_nodepool_name       = "${var.prefix}-${local.environment}-gke-pool"
+  gke_node_sa_id          = substr("${var.prefix}-${local.environment}-gke-node-sa", 0, 30)
+  gke_network_name        = "${var.prefix}-${local.environment}-vpc"
+  gke_subnet_name         = "${var.prefix}-${local.environment}-gke-subnet"
+  gke_ingress_ip_name     = "${var.prefix}-${local.environment}-gke-lb-ip"
+  gke_ingress_name        = "${var.prefix}-${local.environment}-hello-ingress"
+  gke_backend_config_name = "${var.prefix}-${local.environment}-backend-config"
 }
 

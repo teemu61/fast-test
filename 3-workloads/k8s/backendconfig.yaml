@@ -1,0 +1,7 @@
+apiVersion: networking.gke.io/v1
+kind: BackendConfig
+metadata:
+  name: fast-dev-backend-config
+spec:
+  securityPolicy:
+    name: "fast-dev-armor"

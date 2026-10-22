@@ -114,21 +114,15 @@ flowchart LR
 ---
 
 ### Stage 3: Workloads ([`3-workloads/`](./3-workloads))
-* **Purpose**: Provisions isolated application workload projects inside the `Workloads` folder and deploys containerized serverless applications on **Cloud Run** using a declarative, data-driven approach.
+* **Purpose**: Provisions isolated application workload projects inside the `Workloads` folder and deploys containerized applications on **Cloud Run** and **Kubernetes (GKE)** using a declarative, data-driven approach.
 * **Execution Identity**: Executed by the **Project Factory / Workloads Service Account** (`fast-stage2-pf`) created in Stage 0.
 * **Key Resources Created**:
-  * **Workload Application Project** (`fast-dev-app-xxxx`): Created inside the `Workloads/Development` folder (`folder_id`) with billing attached and APIs enabled (`run.googleapis.com`, `compute.googleapis.com`, `iam.googleapis.com`, `logging.googleapis.com`, `monitoring.googleapis.com`).
-  * **Dedicated Runtime Service Account** (`fast-dev-hello-run-sa`): Follows least-privilege principles by giving the container only the permissions it needs.
-  * **Cloud Run v2 Service** (`fast-dev-hello-world`): Serverless container running the application with configurable scale-to-zero autoscaling (`min_instance_count = 0`, `max_instance_count = 5`), CPU/memory allocations (`1` vCPU, `512Mi` RAM), and public or authenticated HTTPS ingress.
-  * **Invoker IAM Permissions**: Grants `roles/run.invoker` to `allUsers` (when `allow_unauthenticated = true`) or scoped principals (`invoker_members`).
-* **Declarative YAML Application Configuration (`data/*.yaml`)**:
-  * Infrastructure orchestration is decoupled from application configuration: developers configure workloads declaratively using clean YAML files in [`3-workloads/data/`](./3-workloads/data).
-  * Terraform dynamically parses YAML files via `yamldecode()` in [`3-workloads/locals.tf`](./3-workloads/locals.tf).
-  * Developers can adjust container images, scale limits, CPU/memory, ports, and environment variables directly in YAML without modifying Terraform HCL.
-* **Container Runtime Considerations**:
-  * Cloud Run requires an HTTP web server listening on the port defined by `$PORT` (default `8080`).
-  * Works out-of-the-box with Google Cloud's official `us-docker.pkg.dev/cloudrun/container/hello` or `docker.io/nginxdemos/hello`. (CLI-only images like Docker Hub's `hello-world` print text and exit immediately, failing Cloud Run health checks).
-* **Outputs**: `service_url` (public HTTPS endpoint), `project_id`, `service_account_email`, `service_name`, `region`.
+  * **Workload Application Project** (`fast-dev-app-xxxx`): Created inside the `Workloads/Development` folder (`folder_id`) with billing attached and APIs enabled (`container.googleapis.com`, `run.googleapis.com`, `compute.googleapis.com`, `iam.googleapis.com`, `logging.googleapis.com`, `monitoring.googleapis.com`).
+  * **Minimalist GKE Cluster & Worker Nodes** (`fast-dev-gke`, `fast-dev-gke-pool`): Single-zone cost-effective Kubernetes cluster (1 x `e2-medium` node) with VPC-native routing, HTTP load balancing, network policy, and dedicated node service account (`fast-dev-gke-sa`).
+  * **Container-Native Load Balancing & GKE Ingress** (`fast-dev-hello-ingress`): GKE Ingress controller (GLBC) dynamically creates a Google Cloud External HTTP Load Balancer with container-native NEGs directly reaching Pod IPs, protected by Google Cloud Armor WAF and attached to a static external IP (`fast-dev-gke-lb-ip`).
+  * **Kubernetes Hello World Application** ([`3-workloads/k8s/`](./3-workloads/k8s)): Deployment (2 replicas, port 8080, health probes), Service (type ClusterIP with standalone NEG annotation), BackendConfig (Cloud Armor WAF integration), and Ingress.
+  * **Cloud Run v2 Service & External Load Balancer**: Serverless Hello World workload with Serverless NEG, Cloud Armor WAF, Rate Limiting, and Global HTTP(S) Load Balancer.
+* **Outputs**: `gke_ingress_ip`, `gke_ingress_url`, `gke_cluster_name`, `gke_get_credentials_command`, `service_url`, `load_balancer_ip`, `project_id`.
 
 ---
 

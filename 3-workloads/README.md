@@ -1,6 +1,8 @@
-# Google Cloud Foundation Fabric (FAST) - Stage 3 (Workloads) Cloud Run with Cloud Armor & Load Balancer
+# Google Cloud Foundation Fabric (FAST) - Stage 3 (Workloads) Cloud Run & GKE Kubernetes with Ingress & Load Balancer
 
-This directory provides a production-grade, modular Terraform implementation of **Google FAST Stage 3** (**Workloads** / `3-workloads`), deploying a containerized **Hello World application on Cloud Run** protected by **Google Cloud Armor WAF**, **Rate Limiting**, and a **Global External Application Load Balancer** with a **Serverless Network Endpoint Group (NEG)**.
+This directory provides a production-grade, modular Terraform implementation of **Google FAST Stage 3** (**Workloads** / `3-workloads`), deploying containerized **Hello World applications** on both:
+1. **Serverless Cloud Run** protected by **Google Cloud Armor WAF**, **Rate Limiting**, and a **Global External Application Load Balancer** with a **Serverless Network Endpoint Group (NEG)**.
+2. **Minimalist Kubernetes (GKE)** cluster with **Container-Native Load Balancing (standalone NEGs)**, **Kubernetes Ingress**, reserved static public IP, and **Cloud Armor WAF** integration via **GKE BackendConfig**.
 
 ---
 
@@ -17,45 +19,67 @@ flowchart TD
     S0["Stage 0: Bootstrap\n(Project Factory SA: fast-stage2-pf)"] -.->|Deploys| S3
 
     subgraph S3["Stage 3: Workload Project"]
-        User["👤 Internet Clients"] -->|HTTP / HTTPS| FW["🌐 Global Forwarding Rule\n+ Static Public IP"]
-        FW --> TP["Proxy & URL Map"]
-        TP --> BS["Backend Service\n(load_balancing_scheme: EXTERNAL_MANAGED)"]
+        User["👤 Internet Clients"] -->|HTTP / HTTPS| LB["🌐 Google Cloud External Application Load Balancer\n+ Static Public IP"]
         
-        subgraph Armor["🛡️ Google Cloud Armor"]
+        subgraph Armor["🛡️ Google Cloud Armor WAF"]
             RL["Rate Limiting\n(100 req / 60s per IP, 5 min ban)"]
             SQLi["OWASP Core Rule Set\n(sqli-v33-stable)"]
             DEF["Default Allow\n(Priority 2147483647)"]
         end
 
-        Armor -.->|Attached Policy| BS
-        BS --> NEG["🔌 Serverless NEG\n(europe-west1)"]
-        NEG --> CR["☁️ Cloud Run v2 Service\n(ingress: INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER)"]
-        SA["🤖 Runtime SA\n(fast-dev-hello-run-sa)"]
-        CR --- SA
+        LB -.->|Protected by| Armor
+
+        subgraph GKE["☸️ Minimalist GKE Cluster (Single-Zone: 1 x e2-medium)"]
+            ING["🚪 Kubernetes Ingress\n(networking.k8s.io/v1)"]
+            BC["⚙️ BackendConfig\n(Cloud Armor Policy)"]
+            SVC["🔌 Kubernetes Service\n(cloud.google.com/neg: ingress)"]
+            DEP["📦 Hello-World Pods\n(2 Replicas, Port 8080)"]
+            SA_GKE["🤖 Node SA\n(fast-dev-gke-sa)"]
+
+            ING --> SVC
+            BC -.->|WAF attachment| SVC
+            SVC --> DEP
+            DEP --- SA_GKE
+        end
+
+        subgraph CR["☁️ Serverless Cloud Run"]
+            NEG["🔌 Serverless NEG"]
+            CR_SVC["☁️ Cloud Run v2 Service"]
+            SA_CR["🤖 Runtime SA\n(fast-dev-hello-run-sa)"]
+
+            NEG --> CR_SVC
+            CR_SVC --- SA_CR
+        end
+
+        LB -->|GKE Ingress Controller / GLBC| ING
+        LB -->|Serverless NEG| NEG
     end
 ```
 
 ---
 
-## 2. Security Architecture: Cloud Armor WAF & Rate Limiting
+## 2. Kubernetes (GKE) Hello World Architecture & Ingress
 
-1. **Ingress Restriction (`INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER`)**:
-   - The Cloud Run service accepts requests **only** routed through the external Application Load Balancer. Direct access attempts hitting the default `*.a.run.app` URL receive HTTP `403 Forbidden`, preventing attackers from bypassing Cloud Armor inspection.
-2. **Rate Limiting (`rate_based_ban`)**:
-   - Throttles requests from the same IP address when exceeding **100 requests per 60 seconds**.
-   - Banned clients receive HTTP `429 Too Many Requests` for **300 seconds (5 minutes)**.
-3. **OWASP Preconfigured WAF Rules**:
-   - Evaluates incoming HTTP payloads against Google Cloud Armor preconfigured expression `evaluatePreconfiguredExpr('sqli-v33-stable')` to block SQL injection attacks with HTTP `403 Forbidden`.
-4. **Serverless NEG Integration**:
-   - GFE (Google Front End) terminates incoming client connections and securely proxies requests through the Serverless NEG to Cloud Run.
+### Minimalist Footprint
+- **Single-Zone Cluster**: Deploys to a single zone (e.g., `europe-west1-b`) with **1 worker node** (`e2-medium`, 30 GB disk), minimizing compute cost for development and testing.
+- **Dedicated Node Service Account**: Follows least-privilege principles (`fast-dev-gke-sa`), granting only `logging.logWriter`, `monitoring.metricWriter`, `monitoring.viewer`, and `artifactregistry.reader`.
+- **VPC-Native Networking**: Uses dedicated secondary IP ranges for Kubernetes Pods (`10.100.0.0/16`) and Services (`10.101.0.0/20`), with Private Google Access and Cloud NAT for private egress.
+
+### Container-Native Load Balancing & GKE Ingress
+1. **Kubernetes Service Annotation (`cloud.google.com/neg: '{"ingress": true}'`)**:
+   - Instructs GKE to create standalone Network Endpoint Groups (NEGs) containing Pod IPs directly, avoiding double-hop kube-proxy routing.
+2. **Kubernetes Ingress (`kubernetes.io/ingress.class: "gce"`)**:
+   - GKE's built-in Ingress Controller (GLBC) dynamically provisions a Google Cloud External HTTP Application Load Balancer with Forwarding Rules, Target HTTP Proxy, URL Map, and Health Checks.
+3. **Static Public IP (`kubernetes.io/ingress.global-static-ip-name`)**:
+   - Binds the Ingress to the Terraform-managed static external IPv4 address (`fast-dev-gke-lb-ip`).
+4. **BackendConfig WAF Integration**:
+   - Attaches the Cloud Armor WAF & Rate Limiting security policy (`fast-dev-armor`) to the Ingress backend service via `BackendConfig`.
 
 ---
 
-## 3. Declarative YAML Configuration
+## 3. Declarative YAML & Dynamic Manifests
 
-Following Google Cloud Foundation Fabric (FAST) best practices, infrastructure logic (Terraform HCL) is decoupled from configuration parameters (YAML) in [`data/`](./data).
-
-### Application Workload Config (`data/hello-world.yaml`)
+### 1. Application Workload Config (`data/hello-world.yaml`)
 ```yaml
 name: hello-world
 environment: dev
@@ -76,74 +100,55 @@ scaling:
 access:
   allow_unauthenticated: true
   ingress: INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER
-
-env:
-  ENVIRONMENT: dev
-  APP_NAME: hello-world
 ```
 
-### Cloud Armor Security Policy Config (`data/cloud_armor.yaml`)
+### 2. Cloud Armor Security Policy (`data/cloud_armor.yaml`)
 ```yaml
 security_policy:
-  name: "fast-dev-hello-armor"
-  description: "Stage 3 Cloud Run Cloud Armor WAF ja Rate Limiting -tietoturvakäytäntö"
+  name: "fast-dev-armor"
+  description: "Stage 3 Cloud Armor WAF ja Rate Limiting -tietoturvakäytäntö"
   rules:
-    # 1. Rate Limiting (max 100 pyyntöä / 60s per IP, ylityksestä 5 min banni)
     - priority: 500
       action: "rate_based_ban"
-      preview: false
-      description: "Pyyntömäärärajoitus samasta IP-osoitteesta"
-      src_ip_ranges:
-        - "*"
       rate_limit_options:
         rate_limit_threshold_count: 100
         rate_limit_threshold_interval_sec: 60
-        conform_action: "allow"
-        exceed_action: "deny(429)"
-        enforce_on_key: "IP"
         ban_duration_sec: 300
-
-    # 2. OWASP SQL Injection -suojaus
     - priority: 2000
       action: "deny(403)"
-      preview: false
       expression: "evaluatePreconfiguredExpr('sqli-v33-stable')"
-      description: "Estetään SQL-injektiohyökkäykset"
-
-    # 3. Oletussääntö
     - priority: 2147483647
       action: "allow"
-      preview: false
-      src_ip_ranges:
-        - "*"
-      description: "Sallitaan muu normaali liikenne"
 ```
 
-Terraform reads and parses both YAML files dynamically via [`locals.tf`](./locals.tf) using `yamldecode()`.
+### 3. Kubernetes Manifests (`k8s/`)
+Terraform automatically generates `k8s/manifests.yaml` with interpolated FAST resource names:
+- [`k8s/deployment.yaml`](./k8s/deployment.yaml): 2 replicas, port 8080, liveness/readiness probes.
+- [`k8s/service.yaml`](./k8s/service.yaml): ClusterIP with container-native NEG and BackendConfig annotations.
+- [`k8s/ingress.yaml`](./k8s/ingress.yaml): GCE Ingress with static global IP.
+- [`k8s/backendconfig.yaml`](./k8s/backendconfig.yaml): BackendConfig attaching Cloud Armor security policy.
+- [`k8s/kustomization.yaml`](./k8s/kustomization.yaml): Kustomize package for one-command deployment.
 
 ---
 
 ## 4. Resources Provisioned
 
 1. **Workload Application Project**:
-   - Created in the designated Workloads folder (`folder_id`).
-   - Attached to the Organization billing account.
-   - Enables core APIs: `run.googleapis.com`, `compute.googleapis.com`, `iam.googleapis.com`, `logging.googleapis.com`, `monitoring.googleapis.com`.
-2. **Cloud Armor Security Policy**:
-   - `google_compute_security_policy.cloud_armor`: Dynamically generated rules for Rate Limiting, OWASP SQLi inspection, and default allow.
-3. **Serverless Network Endpoint Group (NEG)**:
-   - `google_compute_region_network_endpoint_group.serverless_neg`: Bridges the Load Balancer to the Cloud Run service.
-4. **Backend Service & URL Map**:
-   - `google_compute_backend_service.default`: Global backend service with `EXTERNAL_MANAGED` scheme, attached to Cloud Armor.
-   - `google_compute_url_map.default`: Routes frontend traffic to the serverless backend service.
-5. **Frontend & Load Balancing**:
-   - `google_compute_global_address.default`: Dedicated external static IP address.
-   - `google_compute_target_http_proxy.default` & `google_compute_global_forwarding_rule.http`: Port 80 HTTP entrypoint.
-   - Optional HTTPS (Port 443) with Google-managed SSL certificate enabled when `var.domain` is configured.
-6. **Cloud Run v2 Service & Service Account**:
-   - `google_cloud_run_v2_service.hello_world`: Deploys container with scaling policies and `INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER`.
-   - `google_service_account.cloud_run_sa`: Dedicated runtime identity.
-   - `google_cloud_run_v2_service_iam_member.public_access`: `roles/run.invoker` for unauthenticated requests.
+   - Created in the designated Workloads folder (`folder_id`) with billing attached.
+   - APIs enabled: `container.googleapis.com`, `run.googleapis.com`, `compute.googleapis.com`, `iam.googleapis.com`, `logging.googleapis.com`, `monitoring.googleapis.com`.
+2. **Dedicated Networking (when Shared VPC not passed)**:
+   - `google_compute_network.gke_vpc`: Workload VPC (`fast-dev-vpc`).
+   - `google_compute_subnetwork.gke_subnet`: Primary node range (`10.10.0.0/24`), secondary ranges `pods` (`10.100.0.0/16`) and `services` (`10.101.0.0/20`).
+   - `google_compute_router.gke_router` & `google_compute_router_nat.gke_nat`: Managed NAT gateway.
+   - `google_compute_firewall.gke_health_checks`: GLBC and health check firewall rules (`130.211.0.0/22`, `35.191.0.0/16`).
+3. **GKE Cluster & Node Pool**:
+   - `google_container_cluster.primary`: Single-zone cluster with VPC-native routing, HTTP load balancing, and network policy enabled.
+   - `google_container_node_pool.primary_nodes`: 1 x `e2-medium` node with dedicated node service account (`fast-dev-gke-sa`).
+   - `google_compute_global_address.gke_ingress_ip`: Dedicated static external IPv4 address.
+4. **Cloud Armor Security Policy**:
+   - `google_compute_security_policy.cloud_armor`: Rate Limiting and OWASP SQLi inspection.
+5. **Cloud Run v2 Service & External Load Balancer**:
+   - Serverless NEG, Backend Service, URL Map, HTTP Forwarding Rule.
 
 ---
 
@@ -151,24 +156,30 @@ Terraform reads and parses both YAML files dynamically via [`locals.tf`](./local
 
 | File | Purpose |
 | :--- | :--- |
-| [`data/hello-world.yaml`](./data/hello-world.yaml) | Declarative application definition (image, ports, CPU, RAM, scaling, env, ingress) |
-| [`data/cloud_armor.yaml`](./data/cloud_armor.yaml) | Declarative Cloud Armor WAF and Rate Limiting policy definition |
-| [`locals.tf`](./locals.tf) | Decodes YAML data via `yamldecode()` into Terraform configuration |
-| [`versions.tf`](./versions.tf) | Terraform version `>= 1.5.0` and Google provider constraints |
-| [`variables.tf`](./variables.tf) | Input variables for folder, billing, YAML file paths, and optional domain |
-| [`project.tf`](./project.tf) | Workload application project creation and API activation |
+| [`gke.tf`](./gke.tf) | Minimalist GKE cluster, node pool, node SA, and static Ingress IP |
+| [`gke_network.tf`](./gke_network.tf) | Dedicated VPC, subnet with secondary ranges, Cloud Router, NAT, and GLBC health check firewall |
+| [`k8s_manifests.tf`](./k8s_manifests.tf) | Dynamically renders `k8s/manifests.yaml` with Terraform FAST parameters |
+| [`deploy_k8s.sh`](./deploy_k8s.sh) | Automated script to fetch kubeconfig credentials and deploy manifests via `kubectl` |
+| [`k8s/deployment.yaml`](./k8s/deployment.yaml) | Kubernetes Deployment for Hello World (2 replicas, port 8080) |
+| [`k8s/service.yaml`](./k8s/service.yaml) | Kubernetes Service with NEG and BackendConfig annotations |
+| [`k8s/ingress.yaml`](./k8s/ingress.yaml) | Kubernetes Ingress with GCE class and static IP annotation |
+| [`k8s/backendconfig.yaml`](./k8s/backendconfig.yaml) | BackendConfig linking Cloud Armor security policy |
+| [`k8s/kustomization.yaml`](./k8s/kustomization.yaml) | Kustomize configuration linking all Kubernetes resources |
 | [`cloud_run.tf`](./cloud_run.tf) | Cloud Run v2 service, runtime SA, and invoker IAM policy |
 | [`cloud_armor.tf`](./cloud_armor.tf) | Cloud Armor security policy with dynamic rules and rate limiting |
 | [`load_balancer.tf`](./load_balancer.tf) | External HTTP(S) LB, Serverless NEG, backend service, and forwarding rules |
-| [`outputs.tf`](./outputs.tf) | Public Load Balancer IP/URL, Cloud Armor policy details, Cloud Run URIs |
-| [`terraform.tfvars`](./terraform.tfvars) | GitOps landing zone parameters |
+| [`locals.tf`](./locals.tf) | Decodes YAML data and enforces FAST naming standards |
+| [`versions.tf`](./versions.tf) | Terraform version `>= 1.5.0` and provider constraints (`google`, `random`, `local`) |
+| [`variables.tf`](./variables.tf) | Input variables for GKE cluster, node sizing, network CIDRs, folder, and billing |
+| [`outputs.tf`](./outputs.tf) | GKE cluster name, credentials command, Ingress IP/URL, Cloud Run endpoint |
+| [`terraform.tfvars`](./terraform.tfvars) | Stage 3 deployment variables |
 | [`terraform.tfvars.example`](./terraform.tfvars.example) | Example variable configuration |
 
 ---
 
 ## 6. How to Deploy & Verify
 
-### Deployment
+### Step 1: Deploy Infrastructure with Terraform
 ```bash
 cd 3-workloads
 terraform init
@@ -176,31 +187,38 @@ terraform plan
 terraform apply
 ```
 
-### Verification & Testing Cloud Armor Rules
+### Step 2: Deploy Kubernetes Hello World Workload
+You can deploy using the automated helper script:
+```bash
+./deploy_k8s.sh
+```
 
-1. **Verify Normal Access**:
-   ```bash
-   LB_IP=$(terraform output -raw load_balancer_ip)
-   curl -I "http://${LB_IP}/"
-   # Returns: HTTP/1.1 200 OK
-   ```
+Or deploy manually via `kubectl`:
+```bash
+# 1. Fetch credentials
+$(terraform output -raw gke_get_credentials_command)
 
-2. **Test OWASP SQLi Protection (Priority 2000)**:
-   ```bash
-   curl -I "http://${LB_IP}/?id=1%20UNION%20SELECT%20username,password%20FROM%20users"
-   # Returns: HTTP/1.1 403 Forbidden (Blocked by Cloud Armor SQLi rule)
-   ```
+# 2. Apply manifests
+kubectl apply -k k8s/
 
-3. **Test Rate Limiting (Priority 500)**:
-   ```bash
-   # Send 105 rapid requests
-   for i in {1..105}; do curl -s -o /dev/null -w "%{http_code}\n" "http://${LB_IP}/"; done
-   # First 100 requests return 200, subsequent requests return 429 Too Many Requests
-   ```
+# 3. Check Ingress status (GCE Ingress Controller takes ~3-5 minutes to program the Google Cloud Load Balancer)
+kubectl get ingress -w
+```
 
-4. **Verify Direct Ingress Rejection**:
-   ```bash
-   RUN_URL=$(terraform output -raw service_url)
-   curl -I "${RUN_URL}"
-   # Returns: HTTP/1.1 403 Forbidden (Cloud Run direct ingress blocked)
-   ```
+### Step 3: Verify Internet Connectivity & Load Balancing
+Once the Ingress status is programmed:
+```bash
+GKE_IP=$(terraform output -raw gke_ingress_ip)
+
+# Send request to the Hello World application via the Ingress Load Balancer
+curl -i "http://${GKE_IP}/"
+# Returns: HTTP/1.1 200 OK
+```
+
+### Step 4: Verify Cloud Armor WAF on GKE Ingress
+```bash
+# Test SQLi attack blocking
+curl -i "http://${GKE_IP}/?id=1%20UNION%20SELECT%20username,password%20FROM%20users"
+# Returns: HTTP/1.1 403 Forbidden (Blocked by Cloud Armor attached via BackendConfig)
+```
+
