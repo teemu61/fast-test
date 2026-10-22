@@ -1,0 +1,26 @@
+{
+  "mcpServers": {
+    "google-developer-knowledge": {
+      "url": "https://developerknowledge.googleapis.com/mcp"
+    },
+    "gcp-cloud-logging": {
+      "url": "https://logging.googleapis.com/mcp"
+    },
+    "gemini-cloud-assist": {
+      "url": "https://geminicloudassist.googleapis.com/mcp"
+    },
+    "terraform": {
+      "command": "terraform-mcp-server",
+      "args": [
+        "stdio"
+      ]
+    },
+    "gcloud": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@googleapis/gcloud-mcp"
+      ]
+    }
+  }
+}
